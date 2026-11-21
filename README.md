@@ -38,4 +38,4 @@ The output is composed of 3 sections.
 - Data used: Individual player hitting and pitching statistics
 - Note: Statistics are collected from the respective college athletics websites
 
-*D3 Addict Analytics is an independent project and is not affiliated with or endorsed by Massey Ratings, SIDEARM Sports, or the NCAA.
+*D3 Addict Analytics is an independent project and is not affiliated with or endorsed by Massey Ratings, SIDEARM Sports, or the NCAA
