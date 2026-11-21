@@ -25,6 +25,9 @@ The output is composed of 3 sections.
 - `requirements.txt` – Lists the Python libraries required to run the project
 - `.gitignore` – Lists files and folders that **aren't needed in the GitHub repository** and should therefore be excluded
 - `README.md` – Provides an overview of the project and explains its structure and features
+- `massey_names/` - Stores team name data and scripts used for Massey Ratings
+  - `massey_names.py` - Script used to collect Massey name format
+  - `massey_d3_team_names.csv` - Dataset containing the names
 
 ## Data Sources & Acknowledgments
 
