@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# Mac
+.DS_Store
+
+# Local secrets
+.env
+.streamlit/secrets.toml
+
+# Generated files
+*.xlsx
+*.log
