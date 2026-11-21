@@ -144,8 +144,8 @@ def get_sidearm_stats(url):
 
     #Try to extract the hitting an pitching stats (see the except below)
     try:
-        #Download the page (has 10 seconds to do it)
-        response = requests.get(url, timeout=10)
+        headers = {'User-Agent': 'D3-Addict-Analytics (contact: jlalonde@bu.edu)'}
+        response = requests.get(url, headers=headers, timeout=10)
 
         #Raises status error (if there is one)
         response.raise_for_status()
@@ -241,7 +241,7 @@ def get_team_logo(url):
         logo_url = urljoin(url, logo_url)
 
         #Download the logo
-        logo_response = requests.get(logo_url, timeout=10)
+        logo_response = requests.get(logo_url, headers={'User-Agent': 'D3-Addict-Analytics (contact: jlalonde@bu.edu)'}, timeout=10)
         logo_response.raise_for_status()
 
         #SVG logos have to be turned into a PNG first
