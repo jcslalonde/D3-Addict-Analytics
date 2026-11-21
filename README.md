@@ -21,13 +21,16 @@ The output is composed of 3 sections.
 ## Project Structure
 
 - `d3_sim_app.py` – Contains the website interface and connects the simulation to the interactive website
-- `d3_simulation.py` – Contains the simulation code, including statistical calculations, player data collection, and game simulation functions
+- `base_d3_simulation.py` – Contains the initial simulation code, including statistical calculations, player data collection, and game simulation functions
 - `requirements.txt` – Lists the Python libraries required to run the project
 - `.gitignore` – Lists files and folders that **aren't needed in the GitHub repository** and should therefore be excluded
 - `README.md` – Provides an overview of the project and explains its structure and features
 - `massey_names/` - Stores team name data and scripts used for Massey Ratings
   - `massey_names.py` - Script used to collect Massey name format
   - `massey_d3_team_names.csv` - Dataset containing the names
+- `site_stats/` - Stores team stats urls
+  - `PrestoStats.csv` - For teams using PrestoStats Coach's View
+  - `SIDEARM.csv` - For teams using SIDEARM stats
 
 ## Data Sources & Acknowledgments
 
