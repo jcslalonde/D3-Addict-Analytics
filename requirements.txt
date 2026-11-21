@@ -1,0 +1,8 @@
+pandas
+requests
+playwright
+matplotlib
+beautifulsoup4
+openpyxl
+cairosvg
+lxml
