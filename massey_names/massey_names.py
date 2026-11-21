@@ -10,7 +10,7 @@ massey_url = 'https://masseyratings.com/cbase/ncaad3/ratings'
 # Save the files in the same folder as this script
 output_folder = Path(__file__).resolve().parent
 massey_export = output_folder / 'massey_d3_full_export.csv'
-team_names = output_folder / 'massey_d3_team_names.csv'
+team_names_file = output_folder / 'massey_d3_team_names.csv'
 
 
 def main():
@@ -43,7 +43,7 @@ def main():
     team_names = team_names.drop_duplicates(keep='first')
 
     # Save the team names without changing Massey's spelling
-    pd.DataFrame({"massey_name": team_names}).to_csv(team_names, index=False, encoding='utf-8-sig')
+    pd.DataFrame({"massey_name": team_names}).to_csv(team_names_file, index=False, encoding='utf-8-sig')
 
 
 if __name__ == "__main__":
