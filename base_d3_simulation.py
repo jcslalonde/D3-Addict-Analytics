@@ -10,9 +10,22 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from matplotlib.animation import FuncAnimation
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit, parse_qsl, urlencode
 import time
 import shutil
+import re
+
+
+#Read in necessary files
+presto_schools = pd.read_csv('/Users/owner/Desktop/PrestoSports.csv')
+sidearm_schools = pd.read_csv('/Users/owner/Desktop/SIDEARM.csv')
+massey_schools = pd.read_csv('/Users/owner/Desktop/massey_d3_team_names.csv')
+
+#Create team lists from those 3 files
+presto_names = (presto_schools['massey_name'].dropna().astype(str).str.strip().tolist())
+sidearm_names = (sidearm_schools['massey_name'].dropna().astype(str).str.strip().tolist())
+massey_names = (massey_schools['massey_name'].dropna().astype(str).str.strip().tolist())
+
 
 #This function asks the user for the number of the pitcher
 def pitcher_pick():
@@ -53,12 +66,12 @@ def massey_weights(off_team, def_team, keep_file):
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
-                args=['--disable-blink-features=AutomationControlled']
-            )
+                args=['--disable-blink-features=AutomationControlled'])
+            
             page = browser.new_page(
                 user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                viewport={'width': 1440, 'height': 1000}
-            )
+                viewport={'width': 1440, 'height': 1000})
+            
             page.goto('https://masseyratings.com/cbase/ncaad3/ratings', wait_until='domcontentloaded', timeout=100000)
             page.wait_for_timeout(8000) #Often needs a long load time
 
@@ -134,7 +147,173 @@ def massey_weights(off_team, def_team, keep_file):
             else:
                 os.remove(path)
 
-#This function scrapes the hitting and pitching stats from a team's website (Sidearm Sports only). In theory you only need one of the tables unless you are comparing within a team.
+
+#This function scrapes the hitting and pitching stats from a team's website (PrestoSports only)
+def get_presto_stats(url):
+    try:
+        #Ensure the url is in the correct format
+        url = str(url).strip()
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+
+        #Build Coach's View URL
+        parsed_url = urlsplit(url)
+        query = dict(parse_qsl(parsed_url.query))
+        query['tmpl'] = 'teaminfo-network-monospace-json-template'
+
+        coaches_url = urlunsplit((parsed_url.scheme, parsed_url.netloc, parsed_url.path, urlencode(query), parsed_url.fragment))
+
+        #Set headers and request page
+        headers = {'User-Agent': 'D3-Addict-Analytics (contact: jlalonde@bu.edu)'}
+
+        response = requests.get(coaches_url, headers=headers, timeout=30)
+        response.raise_for_status()
+
+        #Find player JSON URL
+        json_urls = re.findall(r'https://[^"\']+\.json', response.text)
+
+        players_url = next(url for url in json_urls if 'playersPageData' in url)
+
+        #Request player JSON data
+        players_response = requests.get(players_url, headers=headers, timeout=30)
+        players_response.raise_for_status()
+
+        players_data = players_response.json()
+
+        #Create hitting and pitching tables
+        hitting_rows = []
+        pitching_rows = []
+
+        #Identify hitting and pitching statistics
+        for player in players_data['individuals']:
+
+            #Extract player information
+            stats = player.get('stats', {})
+            player_name = player.get('fullName', '')
+            uniform = player.get('uniform', '')
+
+            #Find hitting stats
+            at_bats = float(stats.get('ab', 0) or 0)
+
+            if at_bats > 0:
+
+                #Calculate stolen base attempts
+                sb_attempts = int(stats.get('sb', 0) or 0) + int(stats.get('cs', 0) or 0)
+
+                #Add hitting statistics
+                hitting_rows.append({
+                    '#': uniform,
+                    'Player': player_name,
+                    'AVG': stats.get('avg', 0),
+                    'OBP': stats.get('obp', 0),
+                    '2B': stats.get('hd', 0),
+                    '3B': stats.get('ht', 0),
+                    'HR': stats.get('hr', 0),
+                    'H': stats.get('h', 0),
+                    'SO': stats.get('k', 0),
+                    'AB': stats.get('ab', 0),
+                    'BB': stats.get('bb', 0),
+                    'HBP': stats.get('hbp', 0),
+                    'SF': stats.get('sf', 0),
+                    'SB': stats.get('sb', 0),
+                    'SB_ATT': sb_attempts,
+                    'GDP': stats.get('gdp', 0),
+                    'SH': stats.get('sh', 0)})
+
+            #Find pitching stats
+            innings = float(stats.get('ipraw', 0) or 0)
+
+            if innings > 0:
+
+                #Add pitching statistics
+                pitching_rows.append({
+                    '#': uniform,
+                    'Player': player_name,
+                    'IP': stats.get('ip', 0),
+                    'H': stats.get('ph', 0),
+                    'R': stats.get('pr', 0),
+                    'ER': stats.get('er', 0),
+                    'BB': stats.get('pbb', 0),
+                    'SO': stats.get('pk', 0),
+                    '2B': stats.get('phd', 0),
+                    '3B': stats.get('pht', 0),
+                    'HR': stats.get('phr', 0),
+                    'AB': stats.get('pab', 0),
+                    'B/AVG': stats.get('pavg', 0),
+                    'WP': stats.get('wp', 0),
+                    'HBP': stats.get('phbp', 0),
+                    'BK': stats.get('bk', 0),
+                    'SFA': stats.get('psf', 0),
+                    'SHA': stats.get('psh', 0)})
+
+        #Convert rows into DataFrames
+        hitting_table = pd.DataFrame(hitting_rows)
+        pitching_table = pd.DataFrame(pitching_rows)
+
+        #This function serves to clean the tables
+        def clean_presto_table(table, required_columns):
+            table = table.copy()
+
+            #Clean column names
+            table.columns = [str(col).strip().replace('\xa0', ' ') for col in table.columns]
+
+            #Rename stolen base attempts column
+            table = table.rename(columns={'SB-ATT': 'SB_ATT'})
+
+            #Remove Totals and Opponents rows
+            if 'Player' in table.columns:
+                player_names = (table['Player'].fillna('').astype(str).str.strip())
+
+                totals_rows = player_names.str.contains(r'^(?:total|totals|opponents)$', case=False, regex=True)
+                table = table.loc[~totals_rows].copy()
+
+            #Clean player names
+            if 'Player' in table.columns:
+                table['Player'] = (table['Player'].fillna('').astype(str).str.strip())
+                table = table[table['Player'] != ''].copy()
+
+            #Clean jersey numbers
+            if '#' not in table.columns:
+                table['#'] = ''
+
+            table['#'] = (table['#'].fillna('').astype(str).str.strip().str.replace(r'\.0$', '', regex=True))
+
+            #Add missing columns
+            for column in required_columns:
+                if column not in table.columns:
+                    table[column] = 0
+
+            #Convert stats to numeric values
+            for column in table.columns:
+                if column not in ['Player', '#']:
+                    table[column] = table[column].replace({'-': 0, '—': 0, '–': 0, '': 0})
+                    table[column] = pd.to_numeric(table[column], errors='coerce')
+
+            return table.reset_index(drop=True)
+
+        #Hitting columns
+        hitting_required = ['AVG', 'OBP', '2B', '3B', 'HR', 'H', 'SO', 'AB', 'BB', 'HBP', 'SF', 'SB', 'SB_ATT', 'GDP', 'SH']
+
+        #Pitching columns
+        pitching_required = ['IP', 'H', 'R', 'ER', 'BB', 'SO', '2B', '3B', 'HR', 'AB', 'B/AVG', 'WP', 'HBP', 'BK', 'SFA', 'SHA']
+
+        #Clean hitting and pitching stats
+        hitting_table = clean_presto_table(hitting_table, hitting_required)
+        pitching_table = clean_presto_table(pitching_table, pitching_required)
+
+        #Calculate stolen base attempts
+        if 'CS' in hitting_table.columns:
+            hitting_table['SB_ATT'] = (hitting_table['SB'].fillna(0) + hitting_table['CS'].fillna(0))
+
+        #Return the two tables
+        return hitting_table, pitching_table
+
+    #Handle errors
+    except Exception as e:
+        print(f'Error retrieving PrestoSports stats: {e}')
+        return None, None
+
+#This function scrapes the hitting and pitching stats from a team's website (SIDEARM only)
 def get_sidearm_stats(url):
 
     #Ensure the url is in the correct format
@@ -205,6 +384,26 @@ def get_sidearm_stats(url):
         print(f"Couldn't get the stats due to error: {e}")
         return None, None
 
+
+#This function will fetch team stats based on if it is a PrestoSports or SIDEARM school
+def get_team_stats(team_name, url):
+
+    #Clean team name
+    team_name = str(team_name).strip()
+
+    #Check Presto CSV
+    if team_name in presto_names:
+        return get_presto_stats(url)
+
+    #Check Sidearm CSV
+    elif team_name in sidearm_names:
+        return get_sidearm_stats(url)
+
+    else:
+        #Handle team name error
+        raise ValueError(
+            f'{team_name} was not found in either the PrestoSports or SIDEARM')
+
 #This function asks if the user wants the stats exported to Excel (asks again until the answer is y or n)
 def ask_export():
     while True:
@@ -215,7 +414,8 @@ def ask_export():
             return False
         print('Please enter y or n.')
 
-#This function finds a team's logo on its Sidearm stats page and returns it as an image (returns None if it cannot get one)
+
+#This function finds a team's logo on its Sidearm or PrestoSports stats page and returns it as an image (returns None if it cannot get one)
 def get_team_logo(url):
     try:
         #Make sure the url is in the correct format
@@ -224,24 +424,28 @@ def get_team_logo(url):
             url = 'https://' + url
 
         #Download the page
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        headers = {'User-Agent': 'D3-Addict-Analytics (contact: jlalonde@bu.edu)'}
+        response = requests.get(url, headers=headers, timeout=10)
 
         #Look for the logo image in the page header
         soup = BeautifulSoup(response.text, 'html.parser')
-        logo_tag = soup.select_one('.main-header__logo img')
+        logo_tag = soup.select_one('.main-header__logo img, img.d-inline-block.align-text-top')
 
         #If the header logo is not there, use the page's share image instead
         if logo_tag is not None:
             logo_url = logo_tag.get('src')
         else:
-            logo_url = soup.find('meta', property='og:image').get('content')
+            logo_tag = soup.find('meta', property='og:image')
+            logo_url = logo_tag.get('content') if logo_tag is not None else None
+
+        if not logo_url:
+            return None
 
         #Turn the logo link into a full link
         logo_url = urljoin(url, logo_url)
 
         #Download the logo
-        logo_response = requests.get(logo_url, headers={'User-Agent': 'D3-Addict-Analytics (contact: jlalonde@bu.edu)'}, timeout=10)
+        logo_response = requests.get(logo_url, headers=headers, timeout=10)
         logo_response.raise_for_status()
 
         #SVG logos have to be turned into a PNG first
@@ -251,6 +455,12 @@ def get_team_logo(url):
             return plt.imread(BytesIO(png_bytes), format='png')
 
         return plt.imread(BytesIO(logo_response.content))
+
+    #Handle errors
+    except Exception as e:
+        print(f'Error retrieving team logo: {e}')
+        return None
+
 
     #If anything goes wrong the replay just runs without the logo
     except Exception as e:
@@ -390,15 +600,20 @@ def d3_sim(off_name, off_url, def_name, def_url):
 
     off_weight, def_weight = massey_result
 
-    #Get the hitting table from the offensive team's page
-    hitting_table, off_pitching = get_sidearm_stats(off_url)
+    #Get offensive team stats
+    hitting_table, off_pitching = get_team_stats(off_name, off_url)
 
-    #Get the pitching table from the defensive team's page
-    def_hitting, pitching_table = get_sidearm_stats(def_url)
+    #Get defensive team stats
+    def_hitting, pitching_table = get_team_stats(def_name, def_url)
 
-    #Stop if either stats page could not be loaded
-    if hitting_table is None or pitching_table is None:
-        print('Could not load stats: Check the URLs and ensure the team uses Sidearm Stats')
+    #Stop if offensive stats could not be loaded
+    if hitting_table is None or off_pitching is None:
+        print(f'Could not load offensive stats for {off_name}')
+        return
+
+    #Stop if defensive stats could not be loaded
+    if def_hitting is None or pitching_table is None:
+        print(f'Could not load defensive stats for {def_name}')
         return
 
     #Call the pitcher selection function and select only the desired arm from the pitching data if that number exists
@@ -464,9 +679,8 @@ def d3_sim(off_name, off_url, def_name, def_url):
     hitting_table['W_SF'] = hitting_table['SF'] / (hitting_table['AB'] - hitting_table['SO'] - hitting_table['H'] + hitting_table['SF'])
     hitting_table['SH_RT'] = hitting_table['SH'] / (hitting_table['AB'] + hitting_table['BB'] + hitting_table['HBP'] + hitting_table['SF'] + hitting_table['SH'])
 
-    #Drop columns that are no longer needed from the hitting table
-    hitting_table = hitting_table.drop(hitting_table.columns[2:23], axis=1)
-    hitting_table = hitting_table.drop(columns='XBH')
+    #Keep only needed from the hitting table
+    hitting_table = hitting_table[['#', 'Player', 'W_AVG', 'W_XBH/H', '%XBH_AS_2B', '%XBH_AS_3B', '%XBH_AS_HR', 'W_K_RT', 'W_BB+_RT', 'W_SB_ATT_RT', 'W_SB%', 'W_GDP', 'W_SF', 'SH_RT']]
 
     #Defensive adjustments and calculations
     pitching_table['W_BAA'] = pitching_table['B/AVG'] / w_def
@@ -482,9 +696,8 @@ def d3_sim(off_name, off_url, def_name, def_url):
     pitching_table['W_KA_RT'] = (pitching_table['SO'] / pitching_table['AB']) * w_def
     pitching_table['W_BB+A_RT'] = ((pitching_table['BB'] + pitching_table['HBP']) / (pitching_table['AB'] + pitching_table['BB'] + pitching_table['HBP'] + pitching_table['SFA'])) / w_def
 
-    #Drop columns that are no longer needed from the pitching table
-    pitching_table = pitching_table.drop(pitching_table.columns[2:25], axis=1)
-    pitching_table = pitching_table.drop(columns='XBHA')
+    #Keep only needed from the pitching table
+    pitching_table = pitching_table[['#', 'Player', 'W_BAA', 'W_XBH/HA', '%XBH_AS_2BA', '%XBH_AS_3BA', '%XBH_AS_HRA', 'W_KA_RT', 'W_BB+A_RT']]
 
     #Repeat the pitcher for each batter
     pitching_table = pd.concat([pitching_table] * len(hitting_table), ignore_index=True)
@@ -919,7 +1132,7 @@ def d3_sim(off_name, off_url, def_name, def_url):
 
     #Runs allowed
     axes[0].hist(runs_each_game, bins=range(min(runs_each_game), max(runs_each_game) + 2), align='left', edgecolor='black')
-    axes[0].axvline(runs_mean, color='black', linewidth=2, label=f'Mean: {runs_mean:.2f}')
+    axes[0].axvline(runs_mean, color='red', linewidth=2, label=f'Mean: {runs_mean:.2f}')
     axes[0].axvline(runs_mean - runs_sd, color='grey', linestyle='dashed', label=f'SD: +/-{runs_sd:.2f}')
     axes[0].axvline(runs_mean + runs_sd, color='grey', linestyle='dashed')
     axes[0].set_title('Runs Allowed Per Game')
@@ -929,7 +1142,7 @@ def d3_sim(off_name, off_url, def_name, def_url):
 
     #Extra base hits allowed
     axes[1].hist(xbh_each_game, bins=range(min(xbh_each_game), max(xbh_each_game) + 2), align='left', edgecolor='black')
-    axes[1].axvline(xbh_mean, color='black', linewidth=2, label=f'Mean: {xbh_mean:.2f}')
+    axes[1].axvline(xbh_mean, color='red', linewidth=2, label=f'Mean: {xbh_mean:.2f}')
     axes[1].axvline(xbh_mean - xbh_sd, color='grey', linestyle='dashed', label=f'SD: +/-{xbh_sd:.2f}')
     axes[1].axvline(xbh_mean + xbh_sd, color='grey', linestyle='dashed')
     axes[1].set_title('Extra Base Hits Allowed Per Game')
@@ -939,7 +1152,7 @@ def d3_sim(off_name, off_url, def_name, def_url):
 
     #Strikeouts
     axes[2].hist(k_each_game, bins=range(min(k_each_game), max(k_each_game) + 2), align='left', edgecolor='black')
-    axes[2].axvline(k_mean, color='black', linewidth=2, label=f'Mean: {k_mean:.2f}')
+    axes[2].axvline(k_mean, color='red', linewidth=2, label=f'Mean: {k_mean:.2f}')
     axes[2].axvline(k_mean - k_sd, color='grey', linestyle='dashed', label=f'+/- SD: +/-{k_sd:.2f}')
     axes[2].axvline(k_mean + k_sd, color='grey', linestyle='dashed')
     axes[2].set_title('Strikeouts Per Game')
