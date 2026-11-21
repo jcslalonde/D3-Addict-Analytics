@@ -7,3 +7,4 @@ openpyxl
 cairosvg
 lxml
 streamlit
+html5lib
