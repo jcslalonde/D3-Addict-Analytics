@@ -29,7 +29,7 @@ The output is composed of 3 sections.
   - `massey_names.py` - Script used to collect Massey name format
   - `massey_d3_team_names.csv` - Dataset containing the names
 - `site_stats/` - Stores team stats urls
-  - `PrestoStats.csv` - For teams using PrestoStats Coach's View
+  - `PrestoSports.csv` - For teams using PrestoStats Coach's View
   - `SIDEARM.csv` - For teams using SIDEARM stats
 
 ## Data Sources & Acknowledgments
