@@ -823,15 +823,18 @@ def main():
 
     st.header(f"{results['pitcher_name']} vs {results['off_name']}")
 
-    #1. Watch the sim (one button: Play game, then Replay game)
+        #1. Watch the sim (one button: Play game, then Replay game)
     st.subheader('Replay of game 1')
     total_plays = len(results['game_log'])
     button_label = 'Replay game' if st.session_state.get('played') else 'Play game'
     play_all = st.button(button_label)
 
-    #Show the picture (the game plays one play per second)
+    #Two places on the page: the field, and the stats (hidden while the game plays so they can not cover the field)
     frame_spot = st.empty()
+    stats_spot = st.empty()
+
     if play_all:
+        stats_spot.empty()
         for n in range(1, total_plays + 1):
             replay_fig = draw_replay_frame(results['game_log'], n, results['off_name'], results['off_logo'], results['def_logo'])
             frame_spot.pyplot(replay_fig)
@@ -845,23 +848,23 @@ def main():
         frame_spot.pyplot(replay_fig)
         plt.close(replay_fig)
 
-    #2. See the stats
-    st.subheader('Game average pitching stats (95% confidence intervals)')
-    st.dataframe(results['pitcher_table'], hide_index=True, width='stretch')
+    #2. See the stats and 3. the histograms (these show once the game is done)
+    with stats_spot.container():
+        st.subheader('Game average pitching stats (95% confidence intervals)')
+        st.dataframe(results['pitcher_table'], hide_index=True, width='stretch')
 
-    st.subheader(f"{results['off_name']} game average hitting stats")
-    st.dataframe(format_hitter_table(results['hitter_table']), hide_index=True, width='stretch')
+        st.subheader(f"{results['off_name']} game average hitting stats")
+        st.dataframe(format_hitter_table(results['hitter_table']), hide_index=True, width='stretch')
 
-    st.download_button(
-        'Download the stats as Excel',
-        data=make_excel(results['hitter_table'], results['pitcher_table']),
-        file_name=f"{results['off_name']} vs {results['pitcher_name']} Sim Stats.xlsx",
-        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        st.download_button(
+            'Download the stats as Excel',
+            data=make_excel(results['hitter_table'], results['pitcher_table']),
+            file_name=f"{results['off_name']} vs {results['pitcher_name']} Sim Stats.xlsx",
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-    #3. Histograms
-    st.subheader('Distribution over the 40 games')
-    fig = make_histograms(results)
-    st.pyplot(fig)
-    plt.close(fig)
+        st.subheader('Distribution over the 40 games')
+        fig = make_histograms(results)
+        st.pyplot(fig)
+        plt.close(fig)
   
 main()
