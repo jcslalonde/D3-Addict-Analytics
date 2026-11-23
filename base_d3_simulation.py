@@ -10,10 +10,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from matplotlib.animation import FuncAnimation
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlsplit, urlunsplit, parse_qsl, urlencode
+from urllib.parse import urljoin
 import time
-import shutil
-import re
+from presto_text_fn import get_presto_stats
 
 
 #Read in necessary files
@@ -26,6 +25,15 @@ presto_names = (presto_schools['massey_name'].dropna().astype(str).str.strip().t
 sidearm_names = (sidearm_schools['massey_name'].dropna().astype(str).str.strip().tolist())
 massey_names = (massey_schools['massey_name'].dropna().astype(str).str.strip().tolist())
 
+#This function finds a team's stats page link from the PrestoSports or SIDEARM file
+def get_team_url(team_name):
+    team_name = str(team_name).strip()
+    for schools in [presto_schools, sidearm_schools]:
+        match = schools[schools['massey_name'].astype(str).str.strip() == team_name]
+        if not match.empty:
+            url_column = [col for col in schools.columns if 'url' in col.lower()][0]
+            return str(match.iloc[0][url_column]).strip()
+    return None
 
 #This function asks the user for the number of the pitcher
 def pitcher_pick():
@@ -147,172 +155,6 @@ def massey_weights(off_team, def_team, keep_file):
             else:
                 os.remove(path)
 
-
-#This function scrapes the hitting and pitching stats from a team's website (PrestoSports only)
-def get_presto_stats(url):
-    try:
-        #Ensure the url is in the correct format
-        url = str(url).strip()
-        if not url.startswith(('http://', 'https://')):
-            url = 'https://' + url
-
-        #Build Coach's View URL
-        parsed_url = urlsplit(url)
-        query = dict(parse_qsl(parsed_url.query))
-        query['tmpl'] = 'teaminfo-network-monospace-json-template'
-
-        coaches_url = urlunsplit((parsed_url.scheme, parsed_url.netloc, parsed_url.path, urlencode(query), parsed_url.fragment))
-
-        #Set headers and request page
-        headers = {'User-Agent': 'D3-Addict-Analytics (contact: jlalonde@bu.edu)'}
-
-        response = requests.get(coaches_url, headers=headers, timeout=30)
-        response.raise_for_status()
-
-        #Find player JSON URL
-        json_urls = re.findall(r'https://[^"\']+\.json', response.text)
-
-        players_url = next(url for url in json_urls if 'playersPageData' in url)
-
-        #Request player JSON data
-        players_response = requests.get(players_url, headers=headers, timeout=30)
-        players_response.raise_for_status()
-
-        players_data = players_response.json()
-
-        #Create hitting and pitching tables
-        hitting_rows = []
-        pitching_rows = []
-
-        #Identify hitting and pitching statistics
-        for player in players_data['individuals']:
-
-            #Extract player information
-            stats = player.get('stats', {})
-            player_name = player.get('fullName', '')
-            uniform = player.get('uniform', '')
-
-            #Find hitting stats
-            at_bats = float(stats.get('ab', 0) or 0)
-
-            if at_bats > 0:
-
-                #Calculate stolen base attempts
-                sb_attempts = int(stats.get('sb', 0) or 0) + int(stats.get('cs', 0) or 0)
-
-                #Add hitting statistics
-                hitting_rows.append({
-                    '#': uniform,
-                    'Player': player_name,
-                    'AVG': stats.get('avg', 0),
-                    'OBP': stats.get('obp', 0),
-                    '2B': stats.get('hd', 0),
-                    '3B': stats.get('ht', 0),
-                    'HR': stats.get('hr', 0),
-                    'H': stats.get('h', 0),
-                    'SO': stats.get('k', 0),
-                    'AB': stats.get('ab', 0),
-                    'BB': stats.get('bb', 0),
-                    'HBP': stats.get('hbp', 0),
-                    'SF': stats.get('sf', 0),
-                    'SB': stats.get('sb', 0),
-                    'SB_ATT': sb_attempts,
-                    'GDP': stats.get('gdp', 0),
-                    'SH': stats.get('sh', 0)})
-
-            #Find pitching stats
-            innings = float(stats.get('ipraw', 0) or 0)
-
-            if innings > 0:
-
-                #Add pitching statistics
-                pitching_rows.append({
-                    '#': uniform,
-                    'Player': player_name,
-                    'IP': stats.get('ip', 0),
-                    'H': stats.get('ph', 0),
-                    'R': stats.get('pr', 0),
-                    'ER': stats.get('er', 0),
-                    'BB': stats.get('pbb', 0),
-                    'SO': stats.get('pk', 0),
-                    '2B': stats.get('phd', 0),
-                    '3B': stats.get('pht', 0),
-                    'HR': stats.get('phr', 0),
-                    'AB': stats.get('pab', 0),
-                    'B/AVG': stats.get('pavg', 0),
-                    'WP': stats.get('wp', 0),
-                    'HBP': stats.get('phbp', 0),
-                    'BK': stats.get('bk', 0),
-                    'SFA': stats.get('psf', 0),
-                    'SHA': stats.get('psh', 0)})
-
-        #Convert rows into DataFrames
-        hitting_table = pd.DataFrame(hitting_rows)
-        pitching_table = pd.DataFrame(pitching_rows)
-
-        #This function serves to clean the tables
-        def clean_presto_table(table, required_columns):
-            table = table.copy()
-
-            #Clean column names
-            table.columns = [str(col).strip().replace('\xa0', ' ') for col in table.columns]
-
-            #Rename stolen base attempts column
-            table = table.rename(columns={'SB-ATT': 'SB_ATT'})
-
-            #Remove Totals and Opponents rows
-            if 'Player' in table.columns:
-                player_names = (table['Player'].fillna('').astype(str).str.strip())
-
-                totals_rows = player_names.str.contains(r'^(?:total|totals|opponents)$', case=False, regex=True)
-                table = table.loc[~totals_rows].copy()
-
-            #Clean player names
-            if 'Player' in table.columns:
-                table['Player'] = (table['Player'].fillna('').astype(str).str.strip())
-                table = table[table['Player'] != ''].copy()
-
-            #Clean jersey numbers
-            if '#' not in table.columns:
-                table['#'] = ''
-
-            table['#'] = (table['#'].fillna('').astype(str).str.strip().str.replace(r'\.0$', '', regex=True))
-
-            #Add missing columns
-            for column in required_columns:
-                if column not in table.columns:
-                    table[column] = 0
-
-            #Convert stats to numeric values
-            for column in table.columns:
-                if column not in ['Player', '#']:
-                    table[column] = table[column].replace({'-': 0, '—': 0, '–': 0, '': 0})
-                    table[column] = pd.to_numeric(table[column], errors='coerce')
-
-            return table.reset_index(drop=True)
-
-        #Hitting columns
-        hitting_required = ['AVG', 'OBP', '2B', '3B', 'HR', 'H', 'SO', 'AB', 'BB', 'HBP', 'SF', 'SB', 'SB_ATT', 'GDP', 'SH']
-
-        #Pitching columns
-        pitching_required = ['IP', 'H', 'R', 'ER', 'BB', 'SO', '2B', '3B', 'HR', 'AB', 'B/AVG', 'WP', 'HBP', 'BK', 'SFA', 'SHA']
-
-        #Clean hitting and pitching stats
-        hitting_table = clean_presto_table(hitting_table, hitting_required)
-        pitching_table = clean_presto_table(pitching_table, pitching_required)
-
-        #Calculate stolen base attempts
-        if 'CS' in hitting_table.columns:
-            hitting_table['SB_ATT'] = (hitting_table['SB'].fillna(0) + hitting_table['CS'].fillna(0))
-
-        #Return the two tables
-        return hitting_table, pitching_table
-
-    #Handle errors
-    except Exception as e:
-        print(f'Error retrieving PrestoSports stats: {e}')
-        return None, None
-
 #This function scrapes the hitting and pitching stats from a team's website (SIDEARM only)
 def get_sidearm_stats(url):
 
@@ -393,7 +235,7 @@ def get_team_stats(team_name, url):
 
     #Check Presto CSV
     if team_name in presto_names:
-        return get_presto_stats(url)
+        return get_presto_stats(url, team_name)
 
     #Check Sidearm CSV
     elif team_name in sidearm_names:
@@ -415,9 +257,14 @@ def ask_export():
         print('Please enter y or n.')
 
 
-#This function finds a team's logo on its Sidearm or PrestoSports stats page and returns it as an image (returns None if it cannot get one)
-def get_team_logo(url):
+#This function finds a team's logo
+def get_team_logo(team_name, url):
     try:
+        #Use the saved logo first if there is one
+        saved_logo = '/Users/owner/Desktop/presto_logos/' + str(team_name).strip() + '.png'
+        if os.path.exists(saved_logo):
+            return plt.imread(saved_logo)
+
         #Make sure the url is in the correct format
         url = url.strip()
         if 'https://' not in url:
@@ -459,13 +306,7 @@ def get_team_logo(url):
     #Handle errors
     except Exception as e:
         print(f'Error retrieving team logo: {e}')
-        return None
-
-
-    #If anything goes wrong the replay just runs without the logo
-    except Exception as e:
-        print(f"Couldn't get the logo due to error: {e}")
-        return None        
+        return None    
 
 #This function asks if the user wants to keep the Massey download saved on the Desktop (asks again until the answer is y or n)
 def ask_keep_massey():
@@ -586,7 +427,16 @@ def watch_game(game_log, team_name, title, off_logo, def_logo):
     return replay
 
 #This function will serve to run the sim
-def d3_sim(off_name, off_url, def_name, def_url):
+def d3_sim(off_name, def_name):
+
+    #Look up each team's stats page link
+    off_url = get_team_url(off_name)
+    def_url = get_team_url(def_name)
+
+    #Stop if either team is not in the PrestoSports or SIDEARM file
+    if off_url is None or def_url is None:
+        print('One of the teams was not found in the PrestoSports or SIDEARM file.')
+        return
     
     #Ask if the user wants to keep the Massey download saved on the Desktop
     keep_choice = ask_keep_massey()
@@ -642,8 +492,8 @@ def d3_sim(off_name, off_url, def_name, def_url):
     off_logo = None
     def_logo = None
     if replay_choice == True:
-        off_logo = get_team_logo(off_url)
-        def_logo = get_team_logo(def_url)
+        off_logo = get_team_logo(off_name, off_url)
+        def_logo = get_team_logo(def_name, def_url)
 
     #Use only the lineup for the calculations from here on
     hitting_table = hitter_lineup.reset_index(drop=True)
@@ -1104,15 +954,6 @@ def d3_sim(off_name, off_url, def_name, def_url):
     #Save the stats to Excel if the user said yes
     if export_choice == True:
         export_stats(hitter_for_excel, pitcher_table, f'{off_name} vs {pitcher_name} Sim Stats')
-
-    #Keep or delete the Massey download stats based on the user input
-    massey_path = '/Users/owner/Desktop/massey_ratings.csv'
-    if os.path.exists(massey_path):
-        if keep_choice == True:
-            #Save a copy with today's date so there is one file for each day the sim was run
-            shutil.copy(massey_path, '/Users/owner/Desktop/massey_ratings_' + time.strftime('%Y-%m-%d') + '.csv')
-        else:
-            os.remove(massey_path)
 
     #Pull each game's pitcher stats into lists
     runs_each_game = [game['Pitcher Stats']['R'] for game in game_results]
