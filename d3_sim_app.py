@@ -803,8 +803,8 @@ def main():
 
     #Pick the two teams
     left, right = st.columns(2)
-    off_name = left.selectbox('Offense (the lineup)', all_team_names, index=None, placeholder='Choose a team')
-    def_name = right.selectbox('Defense (the pitcher)', all_team_names, index=None, placeholder='Choose a team')
+    off_name = left.selectbox('Offense', all_team_names, index=None, placeholder='Choose a team')
+    def_name = right.selectbox('Defense', all_team_names, index=None, placeholder='Choose a team')
 
     if off_name is None or def_name is None:
         return
@@ -907,10 +907,10 @@ def main():
 
     #2. See the stats and 3. the histograms (these show once the game is done)
     with stats_spot.container():
-        st.subheader('Game average pitching stats (95% confidence intervals)')
+        st.subheader('Game Average Pitching Stats (w/ 95% confidence intervals)')
         st.dataframe(results['pitcher_table'], hide_index=True, width='stretch')
 
-        st.subheader(f"{results['off_name']} game average hitting stats")
+        st.subheader(f"{results['off_name']} Game Average Hitting Stats")
         st.dataframe(format_hitter_table(results['hitter_table']), hide_index=True, width='stretch')
 
         st.download_button(
@@ -919,7 +919,7 @@ def main():
             file_name=f"{results['off_name']} vs {results['pitcher_name']} Sim Stats.xlsx",
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-        st.subheader('Distribution over the 40 games')
+        st.subheader('Distribution Over 40 Games')
         fig = make_histograms(results)
         st.pyplot(fig)
         plt.close(fig)
