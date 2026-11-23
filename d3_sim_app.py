@@ -813,7 +813,7 @@ def main():
         results['def_name'] = def_name
         results['off_logo'] = load_logo(off_name)
         results['def_logo'] = load_logo(def_name)
-        st.session_state['results'] = results
+        st.session_state['played'] = False
 
     #Show the results (they stay on the page when the replay slider moves)
     results = st.session_state.get('results')
@@ -822,29 +822,13 @@ def main():
 
         st.header(f"{results['pitcher_name']} vs {results['off_name']}")
 
-    #1. Watch the sim (use the buttons, the slider, or press Play game)
+        #1. Watch the sim (one button: Play game, then Replay game)
     st.subheader('Replay of game 1')
     total_plays = len(results['game_log'])
+    button_label = 'Replay game' if st.session_state.get('played') else 'Play game'
+    play_all = st.button(button_label)
 
-    #Remember which play the replay is on (and keep it valid if a new sim has fewer plays)
-    if 'play_number' not in st.session_state:
-        st.session_state['play_number'] = 1
-    st.session_state['play_number'] = min(st.session_state['play_number'], total_plays)
-
-    #The buttons
-    button_columns = st.columns(5)
-    if button_columns[0].button('Start'):
-        st.session_state['play_number'] = 1
-    if button_columns[1].button('Back'):
-        st.session_state['play_number'] = max(1, st.session_state['play_number'] - 1)
-    if button_columns[2].button('Next'):
-        st.session_state['play_number'] = min(total_plays, st.session_state['play_number'] + 1)
-    play_all = button_columns[3].button('Play game')
-
-    #The slider
-    play_number = st.slider('Play', 1, total_plays, key='play_number')
-
-    #Show the picture (Play game shows one play per second)
+    #Show the picture (the game plays one play per second)
     frame_spot = st.empty()
     if play_all:
         for n in range(1, total_plays + 1):
@@ -852,8 +836,11 @@ def main():
             frame_spot.pyplot(replay_fig)
             plt.close(replay_fig)
             time.sleep(1)
+        st.session_state['played'] = True
     else:
-        replay_fig = draw_replay_frame(results['game_log'], play_number, results['off_name'], results['off_logo'], results['def_logo'])
+        #Before it is played show the first play, afterwards show the final play
+        show_play = total_plays if st.session_state.get('played') else 1
+        replay_fig = draw_replay_frame(results['game_log'], show_play, results['off_name'], results['off_logo'], results['def_logo'])
         frame_spot.pyplot(replay_fig)
         plt.close(replay_fig)
 
