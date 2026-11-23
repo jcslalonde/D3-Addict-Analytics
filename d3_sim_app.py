@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 import streamlit as st
 from bs4 import BeautifulSoup
+import base64
 
 import sys
 #Find presto_text_fn.py wherever it is in the repo
@@ -745,12 +746,46 @@ def format_hitter_table(hitter_table):
             shown[col] = shown[col].map(lambda x: f'{x:.1f}')
     return shown
 
+#This function reads the background photo from the repo (remembered so it is only read once)
+@st.cache_data(show_spinner=False)
+def load_background(path):
+    with open(path, 'rb') as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
 #The page
 def main():
-    st.set_page_config(page_title='D3 Baseball Sim', layout='wide')
-    st.title('D3 Baseball Pitcher vs Lineup Sim')
-    st.caption('Pick a lineup and a pitcher and the sim plays 40 games. Team ratings from Massey Ratings (masseyratings.com). '
-               f'PrestoSports team stats saved {PRESTO_DATA_DATE}. SIDEARM team stats are refreshed every few hours.')
+    st.set_page_config(page_title='D3 Baseball Simulation', layout='wide')
+
+    #Page background: the ballpark photo, with a white panel behind the content so it stays easy to read
+    background_path = os.path.join(BASE_DIR, 'site_images', 'background.jpg')
+    if os.path.exists(background_path):
+        background_data = load_background(background_path)
+        st.markdown(f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/jpeg;base64,{background_data}");
+                background-size: cover;
+                background-position: center bottom;
+                background-attachment: fixed;
+            }}
+            header[data-testid="stHeader"] {{
+                background: transparent;
+            }}
+            .block-container {{
+                background-color: rgba(255, 255, 255, 0.93);
+                border-radius: 16px;
+                padding: 2rem 2.5rem;
+                margin-top: 1.5rem;
+            }}
+            </style>
+        """, unsafe_allow_html=True)
+    
+    #Title, subtitle, and data note (all centered, in Times New Roman)
+    st.markdown(f"""
+        <h1 style="text-align: center; font-family: 'Times New Roman', Times, serif;">D3 Baseball Simulation</h1>
+        <h4 style="text-align: center; font-family: 'Times New Roman', Times, serif; font-weight: normal;">Select a pitcher and opposing lineup for a 40 game season sim</h4>
+        <p style="text-align: center; font-family: 'Times New Roman', Times, serif; font-size: 0.9rem; color: #555;"><em>Team ratings from Massey Ratings (masseyratings.com). PrestoSports team stats saved {PRESTO_DATA_DATE}. SIDEARM team stats are refreshed every few hours.</em></p>
+    """, unsafe_allow_html=True)
 
     #Pick the two teams
     left, right = st.columns(2)
