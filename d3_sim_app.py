@@ -777,6 +777,9 @@ def main():
                 padding: 2rem 2.5rem;
                 margin-top: 1.5rem;
             }}
+            [data-testid="stToolbar"] {{
+            visibility: hidden;
+            }}
             </style>
         """, unsafe_allow_html=True)
     
