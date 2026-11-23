@@ -15,7 +15,7 @@ import time
 from presto_text_fn import get_presto_stats
 
 
-#Read in necessary files
+#Read in team list files
 presto_schools = pd.read_csv('/Users/owner/Desktop/PrestoSports.csv')
 sidearm_schools = pd.read_csv('/Users/owner/Desktop/SIDEARM.csv')
 massey_schools = pd.read_csv('/Users/owner/Desktop/massey_d3_team_names.csv')
