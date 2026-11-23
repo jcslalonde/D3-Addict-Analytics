@@ -679,6 +679,11 @@ def draw_replay_frame(game_log, i, team_name, off_logo, def_logo):
         if logo is None:
             return
         width = height * logo.shape[1] / logo.shape[0]
+
+        #Wide logos (like word marks) are shrunk so they stay out of the scoreboard text
+        if width > 0.85:
+            width = 0.85
+            height = width * logo.shape[0] / logo.shape[1]
         ax.imshow(logo, extent=[x - width / 2, x + width / 2, y - height / 2, y + height / 2], alpha=alpha)
 
     show_logo(off_logo, -3.08, 2.72, 0.85, 1.0)
@@ -859,6 +864,7 @@ def main():
         results['def_logo'] = load_logo(def_name)
         st.session_state['results'] = results
         st.session_state['played'] = False
+        st.session_state['current_play'] = 0
 
     #Show the results (they stay on the page when the replay slider moves)
     results = st.session_state.get('results')
@@ -867,27 +873,33 @@ def main():
 
     st.header(f"{results['pitcher_name']} vs {results['off_name']}")
 
-        #1. Watch the sim (one button: Play game, then Replay game)
+    #1. Watch the sim (Play game, then Stop game while it runs, then Replay game)
     st.subheader('Replay of game 1')
     total_plays = len(results['game_log'])
-    button_label = 'Replay game' if st.session_state.get('played') else 'Play game'
-    play_all = st.button(button_label)
+    started = st.session_state.get('played') or st.session_state.get('current_play', 0) > 0
+    button_label = 'Replay game' if started else 'Play game'
+    button_spot = st.empty()
+    play_all = button_spot.button(button_label)
 
     #Two places on the page: the field, and the stats (hidden while the game plays so they can not cover the field)
     frame_spot = st.empty()
     stats_spot = st.empty()
 
     if play_all:
+        #The Play button turns into a Stop button while the game runs (clicking it stops the game on the current play)
+        button_spot.button('Stop game')
         stats_spot.empty()
         for n in range(1, total_plays + 1):
+            st.session_state['current_play'] = n
             replay_fig = draw_replay_frame(results['game_log'], n, results['off_name'], results['off_logo'], results['def_logo'])
             frame_spot.pyplot(replay_fig)
             plt.close(replay_fig)
             time.sleep(1)
         st.session_state['played'] = True
+        st.rerun()
     else:
-        #Before it is played show the first play, afterwards show the final play
-        show_play = total_plays if st.session_state.get('played') else 0
+        #Show the empty field before the game, the play it was stopped on, or the final play once it is finished
+        show_play = total_plays if st.session_state.get('played') else st.session_state.get('current_play', 0)
         replay_fig = draw_replay_frame(results['game_log'], show_play, results['off_name'], results['off_logo'], results['def_logo'])
         frame_spot.pyplot(replay_fig)
         plt.close(replay_fig)
