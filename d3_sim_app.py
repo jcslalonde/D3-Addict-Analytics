@@ -807,7 +807,6 @@ def main():
     def_name = right.selectbox('Defense (the pitcher)', all_team_names, index=None, placeholder='Choose a team')
 
     if off_name is None or def_name is None:
-        st.info('Choose both teams to continue.')
         return
     if off_name == def_name:
         st.warning('Choose two different teams.')
