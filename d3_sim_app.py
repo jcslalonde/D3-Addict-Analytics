@@ -13,7 +13,12 @@ import streamlit as st
 from bs4 import BeautifulSoup
 
 import sys
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'presto_stats'))
+#Find presto_text_fn.py wherever it is in the repo
+for folder, subfolders, files in os.walk(os.path.dirname(os.path.abspath(__file__))):
+    if 'presto_text_fn.py' in files:
+        sys.path.append(folder)
+        break
+        
 from presto_text_fn import parse_coaches_text
 
 #Everything is read from the repo folder
