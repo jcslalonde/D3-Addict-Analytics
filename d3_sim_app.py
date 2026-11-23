@@ -19,7 +19,7 @@ from presto_text_fn import parse_coaches_text
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PRESTO_TEXT_FOLDER = os.path.join(BASE_DIR, 'presto_text')
 PRESTO_LOGO_FOLDER = os.path.join(BASE_DIR, 'presto_logos')
-MASSEY_FILE = os.path.join(BASE_DIR, 'massey_ratings_eoy26.csv')
+MASSEY_FILE = os.path.join(BASE_DIR, 'massey_ratings', 'massey_ratings_eoy26.csv')
 
 #Edit this when the saved Presto text files are refreshed
 PRESTO_DATA_DATE = 'Nov 23, 2026'
