@@ -25,7 +25,7 @@ from presto_text_fn import parse_coaches_text
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PRESTO_TEXT_FOLDER = os.path.join(BASE_DIR, 'presto_stats', 'presto_text')
 PRESTO_LOGO_FOLDER = os.path.join(BASE_DIR, 'presto_logos', 'presto_logos')
-SIDEARM_LOGO_FOLDER = os.path.join(BASE_DIR, 'sidearm_logos')
+SIDEARM_LOGO_FOLDER = os.path.join(BASE_DIR, 'sidearm_logos', 'sidearm_logos')
 MASSEY_FILE = os.path.join(BASE_DIR, 'massey_ratings', 'massey_ratings_eoy26.csv')
 
 #Edit this when the saved Presto text files are refreshed
@@ -140,10 +140,11 @@ def load_team_stats(team_name):
 @st.cache_data(ttl=86400, show_spinner=False)
 def load_logo(team_name):
     try:
-        #Use the saved logo first if there is one
-        saved_logo = os.path.join(PRESTO_LOGO_FOLDER, team_name + '.png')
-        if os.path.exists(saved_logo):
-            return plt.imread(saved_logo)
+        #Use the saved logo first if there is one (Presto folder, then SIDEARM folder)
+        for logo_folder in [PRESTO_LOGO_FOLDER, SIDEARM_LOGO_FOLDER]:
+            saved_logo = os.path.join(logo_folder, team_name + '.png')
+            if os.path.exists(saved_logo):
+                return plt.imread(saved_logo)
 
         #Presto schools without a saved logo just get none (their sites block scripts)
         if team_name in presto_names:
