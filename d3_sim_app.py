@@ -790,6 +790,9 @@ def main():
             [data-testid="stToolbar"] {{
             visibility: hidden;
             }}
+            [data-testid="stHeaderActionElements"] {{
+            display: none;
+            }}
             </style>
         """, unsafe_allow_html=True)
     
