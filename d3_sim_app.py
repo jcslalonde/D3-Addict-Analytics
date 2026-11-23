@@ -813,6 +813,7 @@ def main():
         results['def_name'] = def_name
         results['off_logo'] = load_logo(off_name)
         results['def_logo'] = load_logo(def_name)
+        st.session_state['results'] = results
         st.session_state['played'] = False
 
     #Show the results (they stay on the page when the replay slider moves)
@@ -820,9 +821,9 @@ def main():
     if results is None:
         return
 
-        st.header(f"{results['pitcher_name']} vs {results['off_name']}")
+    st.header(f"{results['pitcher_name']} vs {results['off_name']}")
 
-        #1. Watch the sim (one button: Play game, then Replay game)
+    #1. Watch the sim (one button: Play game, then Replay game)
     st.subheader('Replay of game 1')
     total_plays = len(results['game_log'])
     button_label = 'Replay game' if st.session_state.get('played') else 'Play game'
