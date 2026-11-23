@@ -358,6 +358,11 @@ def watch_game(game_log, team_name, title, off_logo, def_logo):
         if logo is None:
             return
         width = height * logo.shape[1] / logo.shape[0]
+
+        #Wide logos (like word marks) are shrunk so they stay out of the scoreboard text
+        if width > 0.85:
+            width = 0.85
+            height = width * logo.shape[0] / logo.shape[1]
         replay_ax.imshow(logo, extent=[x - width / 2, x + width / 2, y - height / 2, y + height / 2], alpha=alpha)
 
     #This draws the game after play number i
