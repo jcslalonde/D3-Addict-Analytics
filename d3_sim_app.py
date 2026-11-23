@@ -31,6 +31,7 @@ MASSEY_FILE = os.path.join(BASE_DIR, 'massey_ratings', 'massey_ratings_eoy26.csv
 
 #Edit this when the saved Presto text files are refreshed
 PRESTO_DATA_DATE = 'Nov 23, 2026'
+APP_VERSION = '2026'
 
 #Read in the team lists
 presto_schools = pd.read_csv(os.path.join(BASE_DIR, 'site_stats', 'PrestoSports.csv'))
@@ -794,6 +795,7 @@ def main():
     
     #Title, subtitle, and data note (all centered, in Times New Roman)
     st.markdown(f"""
+        <div style="text-align: right; color: #000000; font-size: 0.85rem; font-family: 'Times New Roman', Times, serif;">* Version {APP_VERSION}</div>
         <h1 style="text-align: center; font-family: 'Times New Roman', Times, serif;">D3 Baseball Simulation</h1>
         <h4 style="text-align: center; font-family: 'Times New Roman', Times, serif; font-weight: normal;">Select a pitcher and opposing lineup for a 40 game season sim</h4>
         <p style="text-align: center; font-family: 'Times New Roman', Times, serif; font-size: 0.9rem; color: #555;"><em>Team ratings from Massey Ratings (masseyratings.com). PrestoSports team stats saved {PRESTO_DATA_DATE}. SIDEARM team stats are refreshed every few hours.</em></p>
