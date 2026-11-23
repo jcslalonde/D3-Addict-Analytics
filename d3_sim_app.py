@@ -684,7 +684,11 @@ def draw_replay_frame(game_log, i, team_name, off_logo, def_logo):
     show_logo(off_logo, -3.08, 2.72, 0.85, 1.0)
     show_logo(def_logo, 0, 1, 0.6, 0.5)
 
-    play = game_log[i - 1]
+    #Before the first play (i is 0) show an empty field
+    if i == 0:
+        play = {'Inning': 1, 'Outs': 0, 'Runs': 0, 'Bases': [0, 0, 0], 'Batter': '', 'Play': 'Play ball!', 'Good': True}
+    else:
+        play = game_log[i - 1]
 
     #Diamond outline
     ax.plot([0, 1, 0, -1, 0], [0, 1, 2, 1, 0], color='saddlebrown', linewidth=3)
@@ -883,7 +887,7 @@ def main():
         st.session_state['played'] = True
     else:
         #Before it is played show the first play, afterwards show the final play
-        show_play = total_plays if st.session_state.get('played') else 1
+        show_play = total_plays if st.session_state.get('played') else 0
         replay_fig = draw_replay_frame(results['game_log'], show_play, results['off_name'], results['off_logo'], results['def_logo'])
         frame_spot.pyplot(replay_fig)
         plt.close(replay_fig)
