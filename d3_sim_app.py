@@ -25,6 +25,7 @@ from presto_text_fn import parse_coaches_text
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PRESTO_TEXT_FOLDER = os.path.join(BASE_DIR, 'presto_stats', 'presto_text')
 PRESTO_LOGO_FOLDER = os.path.join(BASE_DIR, 'presto_logos', 'presto_logos')
+SIDEARM_LOGO_FOLDER = os.path.join(BASE_DIR, 'sidearm_logos')
 MASSEY_FILE = os.path.join(BASE_DIR, 'massey_ratings', 'massey_ratings_eoy26.csv')
 
 #Edit this when the saved Presto text files are refreshed
