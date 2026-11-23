@@ -5,7 +5,6 @@ import time
 from io import BytesIO, StringIO
 from math import exp
 from urllib.parse import urljoin
-
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import pandas as pd
@@ -13,20 +12,22 @@ import requests
 import streamlit as st
 from bs4 import BeautifulSoup
 
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'presto_stats'))
 from presto_text_fn import parse_coaches_text
 
 #Everything is read from the repo folder
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PRESTO_TEXT_FOLDER = os.path.join(BASE_DIR, 'presto_text')
-PRESTO_LOGO_FOLDER = os.path.join(BASE_DIR, 'presto_logos')
+PRESTO_TEXT_FOLDER = os.path.join(BASE_DIR, 'presto_stats', 'presto_text')
+PRESTO_LOGO_FOLDER = os.path.join(BASE_DIR, 'presto_logos', 'presto_logos')
 MASSEY_FILE = os.path.join(BASE_DIR, 'massey_ratings', 'massey_ratings_eoy26.csv')
 
 #Edit this when the saved Presto text files are refreshed
 PRESTO_DATA_DATE = 'Nov 23, 2026'
 
 #Read in the team lists
-presto_schools = pd.read_csv(os.path.join(BASE_DIR, 'PrestoSports.csv'))
-sidearm_schools = pd.read_csv(os.path.join(BASE_DIR, 'SIDEARM.csv'))
+presto_schools = pd.read_csv(os.path.join(BASE_DIR, 'site_stats', 'PrestoSports.csv'))
+sidearm_schools = pd.read_csv(os.path.join(BASE_DIR, 'site_stats', 'SIDEARM.csv'))
 
 presto_names = presto_schools['massey_name'].dropna().astype(str).str.strip().tolist()
 sidearm_names = sidearm_schools['massey_name'].dropna().astype(str).str.strip().tolist()
