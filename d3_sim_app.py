@@ -820,17 +820,49 @@ def main():
     if results is None:
         return
 
-    st.header(f"{results['pitcher_name']} vs {results['off_name']}")
+        st.header(f"{results['pitcher_name']} vs {results['off_name']}")
 
+    #1. Watch the sim (use the buttons, the slider, or press Play game)
+    st.subheader('Replay of game 1')
+    total_plays = len(results['game_log'])
+
+    #Remember which play the replay is on (and keep it valid if a new sim has fewer plays)
+    if 'play_number' not in st.session_state:
+        st.session_state['play_number'] = 1
+    st.session_state['play_number'] = min(st.session_state['play_number'], total_plays)
+
+    #The buttons
+    button_columns = st.columns(5)
+    if button_columns[0].button('Start'):
+        st.session_state['play_number'] = 1
+    if button_columns[1].button('Back'):
+        st.session_state['play_number'] = max(1, st.session_state['play_number'] - 1)
+    if button_columns[2].button('Next'):
+        st.session_state['play_number'] = min(total_plays, st.session_state['play_number'] + 1)
+    play_all = button_columns[3].button('Play game')
+
+    #The slider
+    play_number = st.slider('Play', 1, total_plays, key='play_number')
+
+    #Show the picture (Play game shows one play per second)
+    frame_spot = st.empty()
+    if play_all:
+        for n in range(1, total_plays + 1):
+            replay_fig = draw_replay_frame(results['game_log'], n, results['off_name'], results['off_logo'], results['def_logo'])
+            frame_spot.pyplot(replay_fig)
+            plt.close(replay_fig)
+            time.sleep(1)
+    else:
+        replay_fig = draw_replay_frame(results['game_log'], play_number, results['off_name'], results['off_logo'], results['def_logo'])
+        frame_spot.pyplot(replay_fig)
+        plt.close(replay_fig)
+
+    #2. See the stats
     st.subheader('Game average pitching stats (95% confidence intervals)')
-    st.dataframe(results['pitcher_table'], hide_index=True, use_container_width=True)
+    st.dataframe(results['pitcher_table'], hide_index=True, width='stretch')
 
     st.subheader(f"{results['off_name']} game average hitting stats")
-    st.dataframe(format_hitter_table(results['hitter_table']), hide_index=True, use_container_width=True)
-
-    fig = make_histograms(results)
-    st.pyplot(fig)
-    plt.close(fig)
+    st.dataframe(format_hitter_table(results['hitter_table']), hide_index=True, width='stretch')
 
     st.download_button(
         'Download the stats as Excel',
@@ -838,11 +870,10 @@ def main():
         file_name=f"{results['off_name']} vs {results['pitcher_name']} Sim Stats.xlsx",
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-    #Replay of game 1 (move the slider to step through the plays)
-    st.subheader('Replay of game 1')
-    play_number = st.slider('Play', 1, len(results['game_log']), 1)
-    replay_fig = draw_replay_frame(results['game_log'], play_number, results['off_name'], results['off_logo'], results['def_logo'])
-    st.pyplot(replay_fig)
-    plt.close(replay_fig)
+    #3. Histograms
+    st.subheader('Distribution over the 40 games')
+    fig = make_histograms(results)
+    st.pyplot(fig)
+    plt.close(fig)
   
 main()
