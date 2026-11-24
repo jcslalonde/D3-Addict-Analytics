@@ -53,9 +53,9 @@ def load_team_lists(season):
 #Teams whose name in the link files is spelled differently in the Massey files
 MASSEY_ALIASES = {'Carroll': 'Carroll WI'}
 
-#The weakest teams in a season's Massey ratings count extra (the factor 2 means twice the penalty)
+#The weakest teams in a season's Massey ratings count extra (the factor 1.5 means one and a half times the penalty)
 WEAK_TEAM_COUNT = 8
-WEAK_TEAM_FACTOR = 2
+WEAK_TEAM_FACTOR = 1.5
 
 #This function gives the names of the weakest teams in a season's Massey file (remembered so the file is only read once)
 @st.cache_data(show_spinner=False)
@@ -431,6 +431,10 @@ def simulate(hitting_table, pitcher_stats, off_weight, def_weight):
 
     prob_df['P(SB_ATT)'] = hitting_table['W_SB_ATT_RT'].fillna(0)
     prob_df['P(SB)'] = hitting_table['W_SB%'].fillna(0)
+
+    #Keep hits and walks below 100 percent so every inning can end (an extreme matchup could otherwise never get an out)
+    prob_df['P(H)'] = prob_df['P(H)'].clip(upper=0.8)
+    prob_df['P(BB+)'] = prob_df['P(BB+)'].clip(upper=0.5)
 
     #Store game by game results
     game_results = []
