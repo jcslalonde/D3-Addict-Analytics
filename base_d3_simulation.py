@@ -36,12 +36,12 @@ SEASONS = {
     '2026': {
         'presto_text': os.path.join(BASE_DIR, 'presto_stats', 'presto_text_26'),
         'presto_csv': os.path.join(BASE_DIR, 'site_domains', 'PrestoSports_26.csv'),
-        'sidearm_csv': os.path.join(BASE_DIR, 'site_domains', 'SIDEARM.csv'),
+        'sidearm_csv': os.path.join(BASE_DIR, 'site_domains', 'SIDEARM_26.csv'),
         'massey': os.path.join(BASE_DIR, 'massey_ratings', 'massey_ratings_eoy26.csv'),
         'presto_date': 'Nov 23, 2026'},
     '2025': {
         'presto_text': os.path.join(BASE_DIR, 'presto_stats', 'presto_text_25'),
-        'presto_csv': os.path.join(BASE_DIR, 'site_domains', 'PrestoSports_2025.csv'),
+        'presto_csv': os.path.join(BASE_DIR, 'site_domains', 'PrestoSports_25.csv'),
         'sidearm_csv': os.path.join(BASE_DIR, 'site_domains', 'SIDEARM_25.csv'),
         'massey': os.path.join(BASE_DIR, 'massey_ratings', 'massey_raings_eoy25.csv'),
         'presto_date': 'Nov 24, 2026'}}
