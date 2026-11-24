@@ -53,6 +53,18 @@ def load_team_lists(season):
 #Teams whose name in the link files is spelled differently in the Massey files
 MASSEY_ALIASES = {'Carroll': 'Carroll WI'}
 
+#The weakest teams in a season's Massey ratings count extra (the factor 2 means twice the penalty)
+WEAK_TEAM_COUNT = 8
+WEAK_TEAM_FACTOR = 2
+
+#This function gives the names of the weakest teams in a season's Massey file (remembered so the file is only read once)
+@st.cache_data(show_spinner=False)
+def get_weak_teams(season):
+    massey_data = pd.read_csv(SEASONS[season]['massey'])
+    ranks = pd.to_numeric(massey_data['Rat'], errors='coerce')
+    worst = massey_data.loc[ranks.nlargest(WEAK_TEAM_COUNT).index]
+    return set(worst.iloc[:, 0].astype(str).str.strip())
+
 #This function gives the team names in a season's Massey file (remembered so the file is only read once)
 @st.cache_data(show_spinner=False)
 def get_massey_names(season):
@@ -246,6 +258,13 @@ def massey_weights(off_team, def_team, off_season, def_season):
     def_index = massey_index(def_team, def_season, 'Def')
     if off_index is None or def_index is None:
         return None
+
+    #Make the weakest teams of each season even worse than their rating index
+    if MASSEY_ALIASES.get(off_team, off_team) in get_weak_teams(off_season):
+        off_index = off_index * WEAK_TEAM_FACTOR
+    if MASSEY_ALIASES.get(def_team, def_team) in get_weak_teams(def_season):
+        def_index = def_index * WEAK_TEAM_FACTOR
+
     return off_index, def_index
 
 #Single plate appearance
