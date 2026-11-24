@@ -110,6 +110,19 @@ def get_saved_presto_stats(team_name, season):
         return None, None
     return hitting, pitching
 
+#This function fixes the jersey number and the player name of a SIDEARM table (some sites, like Allegheny, leave the # column empty and show only the jersey number in the Player column)
+def fix_players(table):
+
+    #Use the jersey number from the Player column when the # column is empty
+    if table['#'].isna().all():
+        table['#'] = table['Player'].astype(str).str.split().str[0]
+
+    #The Player column normally looks like: Last, First Number Last, First (when a site shows no names it is just the number)
+    parts = table['Player'].astype(str).str.split(',')
+    names = parts.apply(lambda p: (p[2] + ' ' + p[0]).strip() if len(p) >= 3 else '')
+    table['Player'] = names.where(names != '', 'Player ' + table['#'].astype(str))
+    return table
+
 #This function scrapes the hitting and pitching stats from a team's website (SIDEARM only)
 def get_sidearm_stats(url):
 
@@ -140,13 +153,13 @@ def get_sidearm_stats(url):
         hitting = hitting.iloc[:-2].reset_index(drop=True)
         pitching = pitching.iloc[:-2].reset_index(drop=True)
 
-        #Fix the Player name column (currently appears as: Last, First Number Last, First)
-        hitting['Player'] = (hitting['Player'].str.split(',').str[2] + ' ' + hitting['Player'].str.split(',').str[0]).str.strip()
-        pitching['Player'] = (pitching['Player'].str.split(',').str[2] + ' ' + pitching['Player'].str.split(',').str[0]).str.strip()
+        #Fix the jersey numbers and the Player name column
+        hitting = fix_players(hitting)
+        pitching = fix_players(pitching)
 
         #Drop the Bio Links
-        hitting = hitting.drop(columns='Bio Link')
-        pitching = pitching.drop(columns='Bio Link')
+        hitting = hitting.drop(columns='Bio Link', errors='ignore')
+        pitching = pitching.drop(columns='Bio Link', errors='ignore')
 
         #Remove rows with missing jersey numbers
         hitting = hitting.dropna(subset=['#'])
