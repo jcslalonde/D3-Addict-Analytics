@@ -6,7 +6,7 @@ A baseball analytics and simulation project created by Julian LaLonde, designed 
 
 D3 Addict Analytics was created to give Division III baseball enthusiasts and coaching staffs an opportunity to explore hypothetical matchups that may otherwise never take place or have limited statistical data available.
 
-This simulation tool takes inputs of a single pitcher, and entire batting lineup, from programs using SIDEARM stats. Team offensive and defensive strength ratings are then pulled from Massey Ratings, standardized to the league, and weighted to the appropriate stats. The simulation looks to find the probability of PA outcomes, and runs 9 inning (one half only, pitcher v lineup) games of this matchup. The simulation runs 40 games, representing the 40 game Division III cap.
+This simulation tool takes inputs of a single pitcher, and entire batting lineup, from programs using SIDEARM or PrestoSports stats, from the year selected by the user (year to year sims are available). Team offensive and defensive strength ratings are then pulled from Massey Ratings, standardized to the league, and weighted to the appropriate stats. The simulation looks to find the probability of PA outcomes, and runs 9 inning (one half only, pitcher v lineup) games of this matchup. The simulation runs 40 games, representing the 40 game Division III cap.
 
 The output is composed of 3 sections.
   1) A live view of a play-by-play 9 inning simulated game
@@ -46,7 +46,7 @@ The output is composed of 3 sections.
 ## Data Sources & Acknowledgments
 
 **Massey Ratings**
-- Source: [Massey Ratings – NCAA Division III Baseball](https://masseyratings.com/cbase/ncaa-d3/ratings)
+- Source: [Massey Ratings – NCAA Division III Baseball](https://masseyratings.com/cbase/ncaad3/ratings)
 - Data used: Team offensive and defensive strength ratings
 - Author: Ken Massey
 
@@ -54,5 +54,9 @@ The output is composed of 3 sections.
 - Source: Individual NCAA Division III college athletics statistics pages powered by SIDEARM Sports
 - Data used: Individual player hitting and pitching statistics
 - Note: Statistics are collected from the respective college athletics websites
+
+**PrestoSports**
+- Source: Individual NCAA Division III college athletics statistics pages powered by PrestoSports (Coach's View)
+- Data used: Individual player hitting and pitching statistics, saved as text for each season
 
 *D3 Addict Analytics is an independent project and is not affiliated with or endorsed by Massey Ratings, SIDEARM Sports, or the NCAA
