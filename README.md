@@ -8,15 +8,10 @@ D3 Addict Analytics was created to give Division III baseball enthusiasts and co
 
 This simulation tool takes inputs of a single pitcher, and entire batting lineup, from programs using SIDEARM stats. Team offensive and defensive strength ratings are then pulled from Massey Ratings, standardized to the league, and weighted to the appropriate stats. The simulation looks to find the probability of PA outcomes, and runs 9 inning (one half only, pitcher v lineup) games of this matchup. The simulation runs 40 games, representing the 40 game Division III cap.
 
-After the user is asked to input the two teams, a pitcher, and batting order, these are the following remaining selections (each a yes (y) or no (n) response): 
-  1) Save the Massey Ratings of the current day (the day the sim is being run) to the user's device
-  2) Export the simulation box scores to an XLSX file on the user's device
-  3) View a single live game of the 40 simulations run
-
 The output is composed of 3 sections.
-  1) Game average pitcher stats alongside confidence intervals with game average hitting box scores
-  2) Histograms of runs per game, extra base hits per game, and strikeouts per game, each with a mean and +/- 1 standard deviation bar
-  3) (Optionally) A live view of a play-by-play 9 inning simulated game
+  1) A live view of a play-by-play 9 inning simulated game
+  2) Game average pitcher stats alongside confidence intervals with game average hitting box scores
+  3) Histograms of runs per game, extra base hits per game, and strikeouts per game, each with a mean and +/- 1 standard deviation bars
 
 ## Project Structure
 
