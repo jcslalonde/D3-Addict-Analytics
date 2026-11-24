@@ -7,7 +7,7 @@ A baseball analytics and simulation project created by Julian LaLonde, designed 
 
 D3 Addict Analytics was created to give Division III baseball enthusiasts and coaching staffs an opportunity to explore hypothetical matchups that may otherwise never take place or have limited statistical data available.
 
-This simulation tool takes inputs of a single pitcher, and entire batting lineup, from programs using SIDEARM or PrestoSports stats, from the year selected by the user. Team offensive and defensive strength ratings are then pulled from Massey Ratings, standardized to the league, and weighted to the appropriate stats. The simulation looks to find the probability of PA outcomes, and runs 9 inning (one half only, pitcher v lineup) games of this matchup. The simulation runs 40 games, representing the 40 game Division III cap. Pitchers and hitting lineups can be compared across years.
+This simulation tool takes inputs of a single pitcher, and entire batting lineup, from programs using SIDEARM or PrestoSports stats, from the year selected by the user. Team offensive and defensive strength ratings are then pulled from Massey Ratings, standardized to the league, and weighted to the appropriate stats (Note: An additional weight penalty is applied to the 8 worst teams). The simulation looks to find the probability of PA outcomes, and runs 9 inning (one half only, pitcher v lineup) games of this matchup. The simulation runs 40 games, representing the 40 game Division III cap. Pitchers and hitting lineups can be compared across years.
 
 The output is composed of 3 sections.
   1) A live view of a play-by-play 9 inning simulated game
