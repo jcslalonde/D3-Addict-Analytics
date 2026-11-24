@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 import base64
 
 import sys
+
 #Find presto_text_fn.py wherever it is in the repo
 for folder, subfolders, files in os.walk(os.path.dirname(os.path.abspath(__file__))):
     if 'presto_text_fn.py' in files:
@@ -24,30 +25,58 @@ from presto_text_fn import parse_coaches_text
 
 #Everything is read from the repo folder
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PRESTO_TEXT_FOLDER = os.path.join(BASE_DIR, 'presto_stats', 'presto_text')
 PRESTO_LOGO_FOLDER = os.path.join(BASE_DIR, 'presto_logos', 'presto_logos')
 SIDEARM_LOGO_FOLDER = os.path.join(BASE_DIR, 'sidearm_logos', 'sidearm_logos')
-MASSEY_FILE = os.path.join(BASE_DIR, 'massey_ratings', 'massey_ratings_eoy26.csv')
+BACKGROUND_FILE = os.path.join(BASE_DIR, 'background.jpg')
 
-#Edit this when the saved Presto text files are refreshed
-PRESTO_DATA_DATE = 'Nov 23, 2026'
+#Edit this when a new version of the app is released
 APP_VERSION = '2026'
 
-#Read in the team lists
-presto_schools = pd.read_csv(os.path.join(BASE_DIR, 'site_stats', 'PrestoSports.csv'))
-sidearm_schools = pd.read_csv(os.path.join(BASE_DIR, 'site_stats', 'SIDEARM.csv'))
+#Each season has its own saved Presto text folder, team link files, and Massey ratings file
+SEASONS = {
+    '2026': {
+        'presto_text': os.path.join(BASE_DIR, 'presto_stats', 'presto_text_26'),
+        'presto_csv': os.path.join(BASE_DIR, 'site_domains', 'PrestoSports_26.csv'),
+        'sidearm_csv': os.path.join(BASE_DIR, 'site_domains', 'SIDEARM.csv'),
+        'massey': os.path.join(BASE_DIR, 'massey_ratings', 'massey_ratings_eoy26.csv'),
+        'presto_date': 'Nov 23, 2026'},
+    '2025': {
+        'presto_text': os.path.join(BASE_DIR, 'presto_stats', 'presto_text_25'),
+        'presto_csv': os.path.join(BASE_DIR, 'site_domains', 'PrestoSports_2025.csv'),
+        'sidearm_csv': os.path.join(BASE_DIR, 'site_domains', 'SIDEARM_25.csv'),
+        'massey': os.path.join(BASE_DIR, 'massey_ratings', 'massey_raings_eoy25.csv'),
+        'presto_date': 'Nov 24, 2026'}}
 
-presto_names = presto_schools['massey_name'].dropna().astype(str).str.strip().tolist()
-sidearm_names = sidearm_schools['massey_name'].dropna().astype(str).str.strip().tolist()
-all_team_names = sorted(set(presto_names + sidearm_names))
+#This function reads the team lists for a season (remembered so the files are only read once)
+@st.cache_data(show_spinner=False)
+def load_team_lists(season):
+    presto_schools = pd.read_csv(SEASONS[season]['presto_csv'], encoding='utf-8-sig')
+    sidearm_schools = pd.read_csv(SEASONS[season]['sidearm_csv'], encoding='utf-8-sig')
+    return presto_schools, sidearm_schools
+
+#Teams whose name in the link files is spelled differently in the Massey files
+MASSEY_ALIASES = {'Carroll': 'Carroll WI'}
+
+#This function gives the team names in a season's Massey file (remembered so the file is only read once)
+@st.cache_data(show_spinner=False)
+def get_massey_names(season):
+    massey_data = pd.read_csv(SEASONS[season]['massey'])
+    return set(massey_data.iloc[:, 0].astype(str).str.lower().str.strip())
+
+#This function gives the PrestoSports team names and the SIDEARM team names for a season
+def get_team_names(season):
+    presto_schools, sidearm_schools = load_team_lists(season)
+    presto_names = presto_schools['massey_name'].dropna().astype(str).str.strip().tolist()
+    sidearm_names = sidearm_schools['massey_name'].dropna().astype(str).str.strip().tolist()
+    return presto_names, sidearm_names
 
 #Chance that a runner on second scores on a single (otherwise he goes to third)
 second_scores_single = 0.65
 
-#This function finds a team's stats page link from the PrestoSports or SIDEARM file
-def get_team_url(team_name):
+#This function finds a team's stats page link from the PrestoSports or SIDEARM file for a season
+def get_team_url(team_name, season):
     team_name = str(team_name).strip()
-    for schools in [presto_schools, sidearm_schools]:
+    for schools in load_team_lists(season):
         match = schools[schools['massey_name'].astype(str).str.strip() == team_name]
         if not match.empty:
             url_column = [col for col in schools.columns if 'url' in col.lower()][0]
@@ -55,8 +84,8 @@ def get_team_url(team_name):
     return None
 
 #This function reads a PrestoSports team's saved page text from the repo (it never goes online)
-def get_saved_presto_stats(team_name):
-    path = os.path.join(PRESTO_TEXT_FOLDER, team_name + '.txt')
+def get_saved_presto_stats(team_name, season):
+    path = os.path.join(SEASONS[season]['presto_text'], team_name + '.txt')
     if not os.path.exists(path):
         return None, None
 
@@ -109,7 +138,7 @@ def get_sidearm_stats(url):
         hitting = hitting.dropna(subset=['#'])
         pitching = pitching.dropna(subset=['#'])
 
-        #Keep the jersey number as text (some players have two numbers like 27/7)
+        #Keep the jersey number as text (some players have two numbers like 27/7), and drop a trailing .0 if there is one
         hitting['#'] = hitting['#'].astype(str).str.replace(r'\.0$', '', regex=True)
         pitching['#'] = pitching['#'].astype(str).str.replace(r'\.0$', '', regex=True)
 
@@ -127,13 +156,14 @@ def get_sidearm_stats(url):
     except Exception:
         return None, None
 
-#This function loads a team's stats (Sidearm is remembered for 6 hours so many users do not keep hitting the school's site)
+#This function loads a team's stats for a season (Sidearm is remembered for 6 hours so many users do not keep hitting the school's site)
 @st.cache_data(ttl=21600, show_spinner=False)
-def load_team_stats(team_name):
+def load_team_stats(team_name, season):
+    presto_names, sidearm_names = get_team_names(season)
     if team_name in presto_names:
-        return get_saved_presto_stats(team_name)
+        return get_saved_presto_stats(team_name, season)
 
-    url = get_team_url(team_name)
+    url = get_team_url(team_name, season)
     if url is None:
         return None, None
     return get_sidearm_stats(url)
@@ -149,10 +179,12 @@ def load_logo(team_name):
                 return plt.imread(saved_logo)
 
         #Presto schools without a saved logo just get none (their sites block scripts)
-        if team_name in presto_names:
+        if team_name in get_team_names('2026')[0] or team_name in get_team_names('2025')[0]:
             return None
 
-        url = get_team_url(team_name)
+        url = get_team_url(team_name, '2026') or get_team_url(team_name, '2025')
+        if url is None:
+            return None
         headers = {'User-Agent': 'D3-Addict-Analytics (contact: jlalonde@bu.edu)'}
         response = requests.get(url, headers=headers, timeout=10)
 
@@ -183,14 +215,16 @@ def load_logo(team_name):
     except Exception:
         return None
 
-#This function finds the offensive and defensive rating index of the teams from the saved Massey file
-def massey_weights(off_team, def_team):
+#This function finds the offensive and defensive rating index of the teams from the season's saved Massey file
+def massey_weights(off_team, def_team, season):
     try:
-        massey_data = pd.read_csv(MASSEY_FILE)
+        massey_data = pd.read_csv(SEASONS[season]['massey'])
 
-        #Finds the matches for the input offensive and defensive teams
-        match_off = massey_data[massey_data.iloc[:, 0].astype(str).str.lower().str.strip() == off_team.lower()]
-        match_def = massey_data[massey_data.iloc[:, 0].astype(str).str.lower().str.strip() == def_team.lower()]
+        #Finds the matches for the input offensive and defensive teams (using the Massey spelling of the name)
+        off_lookup = MASSEY_ALIASES.get(off_team, off_team).lower()
+        def_lookup = MASSEY_ALIASES.get(def_team, def_team).lower()
+        match_off = massey_data[massey_data.iloc[:, 0].astype(str).str.lower().str.strip() == off_lookup]
+        match_def = massey_data[massey_data.iloc[:, 0].astype(str).str.lower().str.strip() == def_lookup]
 
         if match_off.empty or match_def.empty:
             return None
@@ -199,15 +233,19 @@ def massey_weights(off_team, def_team):
         off_position = massey_data.columns.get_loc('Off')
         def_position = massey_data.columns.get_loc('Def')
 
-        #Gets the offensive and defensive ratings
-        off_rating = float(match_off.iloc[:, off_position + 1].item())
-        def_rating = float(match_def.iloc[:, def_position + 1].item())
+        #The rating value is in the column right after each ranking column
+        off_col = massey_data.columns[off_position + 1]
+        def_col = massey_data.columns[def_position + 1]
 
-        #Find standardized defensive and offensive rating index
-        off_mean = massey_data['Unnamed: 10'].astype(float).mean()
-        def_mean = massey_data['Unnamed: 12'].astype(float).mean()
-        off_sd = massey_data['Unnamed: 10'].astype(float).std()
-        def_sd = massey_data['Unnamed: 12'].astype(float).std()
+        #Gets the offensive and defensive ratings
+        off_rating = float(match_off[off_col].item())
+        def_rating = float(match_def[def_col].item())
+
+        #Find standardized defensive and offensive rating index (using the same columns the ratings came from)
+        off_mean = massey_data[off_col].astype(float).mean()
+        def_mean = massey_data[def_col].astype(float).mean()
+        off_sd = massey_data[off_col].astype(float).std()
+        def_sd = massey_data[def_col].astype(float).std()
 
         return float((off_rating - off_mean) / off_sd), float((def_rating - def_mean) / def_sd)
 
@@ -354,7 +392,7 @@ def simulate(hitting_table, pitcher_stats, off_weight, def_weight):
 
     #Keep only needed from the pitching table
     pitching_table = pitching_table[['#', 'Player', 'W_BAA', 'W_XBH/HA', '%XBH_AS_2BA', '%XBH_AS_3BA', '%XBH_AS_HRA', 'W_KA_RT', 'W_BB+A_RT']]
-    
+
     #Repeat the pitcher for each batter
     pitching_table = pd.concat([pitching_table] * len(hitting_table), ignore_index=True)
 
@@ -767,7 +805,7 @@ def main():
     st.set_page_config(page_title='D3 Baseball Simulation', layout='wide')
 
     #Page background: the ballpark photo, with a white panel behind the content so it stays easy to read
-    background_path = os.path.join(BASE_DIR, 'site_images', 'background.jpg')
+    background_path = BACKGROUND_FILE
     if os.path.exists(background_path):
         background_data = load_background(background_path)
         st.markdown(f"""
@@ -801,13 +839,25 @@ def main():
         <div style="text-align: right; color: #000000; font-size: 0.85rem; font-family: 'Times New Roman', Times, serif;">* Version {APP_VERSION}</div>
         <h1 style="text-align: center; font-family: 'Times New Roman', Times, serif;">D3 Baseball Simulation</h1>
         <h4 style="text-align: center; font-family: 'Times New Roman', Times, serif; font-weight: normal;">Select a pitcher and opposing lineup for a 40 game season sim</h4>
-        <p style="text-align: center; font-family: 'Times New Roman', Times, serif; font-size: 0.9rem; color: #555;"><em>Team ratings from Massey Ratings (masseyratings.com). PrestoSports team stats saved {PRESTO_DATA_DATE}. SIDEARM team stats are refreshed every few hours.</em></p>
     """, unsafe_allow_html=True)
 
-    #Pick the two teams
+    #Pick the season (each season has its own team stats and Massey ratings)
+    spacer_left, season_spot, spacer_right = st.columns([1, 2, 1])
+    season = season_spot.radio('Season', list(SEASONS.keys()), horizontal=True)
+
+    #Data note (centered, in Times New Roman)
+    st.markdown(f"""
+        <p style="text-align: center; font-family: 'Times New Roman', Times, serif; font-size: 0.9rem; color: #555;"><em>Team ratings from Massey Ratings (masseyratings.com). PrestoSports team stats saved {SEASONS[season]['presto_date']}. SIDEARM team stats are refreshed every few hours.</em></p>
+    """, unsafe_allow_html=True)
+
+    #Pick the two teams (from the chosen season's lists)
+    presto_names, sidearm_names = get_team_names(season)
+    #Only teams that are in the season's Massey ratings can be picked
+    massey_names = get_massey_names(season)
+    all_team_names = sorted(team for team in set(presto_names + sidearm_names) if MASSEY_ALIASES.get(team, team).lower() in massey_names)
     left, right = st.columns(2)
-    off_name = left.selectbox('Offense', all_team_names, index=None, placeholder='Choose a team')
-    def_name = right.selectbox('Defense', all_team_names, index=None, placeholder='Choose a team')
+    off_name = left.selectbox('Offense', all_team_names, index=None, placeholder='Choose a team', key='offense_' + season)
+    def_name = right.selectbox('Defense', all_team_names, index=None, placeholder='Choose a team', key='defense_' + season)
 
     if off_name is None or def_name is None:
         return
@@ -817,8 +867,8 @@ def main():
 
     #Load the stats
     with st.spinner('Loading team stats...'):
-        hitting_table, off_pitching = load_team_stats(off_name)
-        def_hitting, pitching_table = load_team_stats(def_name)
+        hitting_table, off_pitching = load_team_stats(off_name, season)
+        def_hitting, pitching_table = load_team_stats(def_name, season)
 
     if hitting_table is None or off_pitching is None:
         st.error(f'Could not load stats for {off_name}.')
@@ -841,7 +891,7 @@ def main():
     columns = st.columns(3)
     for spot in range(9):
         default_index = default_order[spot] if spot < len(default_order) else 0
-        choice = columns[spot % 3].selectbox(f'Batter {spot + 1}', hitter_options, index=int(default_index), key=f'{off_name}_batter_{spot}')
+        choice = columns[spot % 3].selectbox(f'Batter {spot + 1}', hitter_options, index=int(default_index), key=f'{season}_{off_name}_batter_{spot}')
         lineup_choices.append(choice)
 
     if len(set(lineup_choices)) < 9:
@@ -850,7 +900,7 @@ def main():
 
     #Run the sim
     if st.button('Run the sim', type='primary'):
-        massey_result = massey_weights(off_name, def_name)
+        massey_result = massey_weights(off_name, def_name, season)
         if massey_result is None:
             st.error('Could not find both teams in the saved Massey ratings.')
             return
@@ -862,6 +912,7 @@ def main():
         with st.spinner('Playing 40 games...'):
             results = simulate(hitter_lineup, pitcher_stats, massey_result[0], massey_result[1])
 
+        results['season'] = season
         results['off_name'] = off_name
         results['def_name'] = def_name
         results['off_logo'] = load_logo(off_name)
@@ -872,7 +923,7 @@ def main():
 
     #Show the results (they stay on the page when the replay slider moves)
     results = st.session_state.get('results')
-    if results is None:
+    if results is None or results.get('season') != season:
         return
 
     st.header(f"{results['pitcher_name']} vs {results['off_name']}")
