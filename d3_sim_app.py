@@ -840,6 +840,7 @@ def main():
     
     #Title, subtitle, and data note (all centered, in Times New Roman)
     st.markdown(f"""
+        <div style="text-align: right; color: #000000; font-size: 0.85rem; font-family: 'Times New Roman', Times, serif;"><em>Kindly report errors to jlalonde@bu.edu</em></div>
         <h1 style="text-align: center; font-family: 'Times New Roman', Times, serif;">D3 Baseball Simulation</h1>
         <h4 style="text-align: center; font-family: 'Times New Roman', Times, serif; font-weight: normal;">Select a pitcher and opposing lineup for a 40 game season sim</h4>
     """, unsafe_allow_html=True)
