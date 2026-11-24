@@ -12,7 +12,6 @@ import requests
 import streamlit as st
 from bs4 import BeautifulSoup
 import base64
-
 import sys
 
 #Find presto_text_fn.py wherever it is in the repo
@@ -69,6 +68,12 @@ def get_team_names(season):
     presto_names = presto_schools['massey_name'].dropna().astype(str).str.strip().tolist()
     sidearm_names = sidearm_schools['massey_name'].dropna().astype(str).str.strip().tolist()
     return presto_names, sidearm_names
+
+#This function gives the teams that can be picked for a season (they need to be in that season's Massey ratings)
+def get_pickable_teams(season):
+    presto_names, sidearm_names = get_team_names(season)
+    massey_names = get_massey_names(season)
+    return sorted(team for team in set(presto_names + sidearm_names) if MASSEY_ALIASES.get(team, team).lower() in massey_names)
 
 #Chance that a runner on second scores on a single (otherwise he goes to third)
 second_scores_single = 0.65
@@ -215,42 +220,36 @@ def load_logo(team_name):
     except Exception:
         return None
 
-#This function finds the offensive and defensive rating index of the teams from the season's saved Massey file
-def massey_weights(off_team, def_team, season):
+#This function finds one team's rating index (how far above or below the average team it is) from a season's saved Massey file
+def massey_index(team, season, rating_name):
     try:
         massey_data = pd.read_csv(SEASONS[season]['massey'])
 
-        #Finds the matches for the input offensive and defensive teams (using the Massey spelling of the name)
-        off_lookup = MASSEY_ALIASES.get(off_team, off_team).lower()
-        def_lookup = MASSEY_ALIASES.get(def_team, def_team).lower()
-        match_off = massey_data[massey_data.iloc[:, 0].astype(str).str.lower().str.strip() == off_lookup]
-        match_def = massey_data[massey_data.iloc[:, 0].astype(str).str.lower().str.strip() == def_lookup]
-
-        if match_off.empty or match_def.empty:
+        #Finds the match for the team (using the Massey spelling of the name)
+        lookup = MASSEY_ALIASES.get(team, team).lower()
+        match = massey_data[massey_data.iloc[:, 0].astype(str).str.lower().str.strip() == lookup]
+        if match.empty:
             return None
 
-        #Find which column number is for the offensive and defensive rankings
-        off_position = massey_data.columns.get_loc('Off')
-        def_position = massey_data.columns.get_loc('Def')
+        #The rating value is in the column right after the ranking column (Off or Def)
+        rating_col = massey_data.columns[massey_data.columns.get_loc(rating_name) + 1]
+        rating = float(match[rating_col].item())
 
-        #The rating value is in the column right after each ranking column
-        off_col = massey_data.columns[off_position + 1]
-        def_col = massey_data.columns[def_position + 1]
-
-        #Gets the offensive and defensive ratings
-        off_rating = float(match_off[off_col].item())
-        def_rating = float(match_def[def_col].item())
-
-        #Find standardized defensive and offensive rating index (using the same columns the ratings came from)
-        off_mean = massey_data[off_col].astype(float).mean()
-        def_mean = massey_data[def_col].astype(float).mean()
-        off_sd = massey_data[off_col].astype(float).std()
-        def_sd = massey_data[def_col].astype(float).std()
-
-        return float((off_rating - off_mean) / off_sd), float((def_rating - def_mean) / def_sd)
+        #Standardize with the average and spread of the same column
+        rating_mean = massey_data[rating_col].astype(float).mean()
+        rating_sd = massey_data[rating_col].astype(float).std()
+        return float((rating - rating_mean) / rating_sd)
 
     except Exception:
         return None
+
+#This function finds the offensive and defensive rating index (the offense and defense can be from different seasons)
+def massey_weights(off_team, def_team, off_season, def_season):
+    off_index = massey_index(off_team, off_season, 'Off')
+    def_index = massey_index(def_team, def_season, 'Def')
+    if off_index is None or def_index is None:
+        return None
+    return off_index, def_index
 
 #Single plate appearance
 def plate_appearance(prob_row):
@@ -841,49 +840,55 @@ def main():
         <h4 style="text-align: center; font-family: 'Times New Roman', Times, serif; font-weight: normal;">Select a pitcher and opposing lineup for a 40 game season sim</h4>
     """, unsafe_allow_html=True)
 
-    #Pick the season (each season has its own team stats and Massey ratings)
-    spacer_left, season_spot, spacer_right = st.columns([1, 2, 1])
-    season = season_spot.radio('Season', list(SEASONS.keys()), horizontal=True)
+    #The data note goes here, and is filled in once the seasons are picked below
+    note_spot = st.empty()
+
+    #Pick the offense and the defense, each with its own season (so a 2025 offense can face a 2026 defense)
+    left, right = st.columns(2)
+    off_team_box = left.container()
+    off_season_box = left.container()
+    def_team_box = right.container()
+    def_season_box = right.container()
+
+    #The seasons are read first, because they decide which teams are in the team lists
+    season_options = list(SEASONS.keys())
+    off_season = off_season_box.selectbox('Offense season', season_options, key='offense_season')
+    def_season = def_season_box.selectbox('Defense season', season_options, key='defense_season')
+
+    off_name = off_team_box.selectbox('Offense', get_pickable_teams(off_season), index=None, placeholder='Choose a team', key='offense_' + off_season)
+    def_name = def_team_box.selectbox('Defense', get_pickable_teams(def_season), index=None, placeholder='Choose a team', key='defense_' + def_season)
 
     #Data note (centered, in Times New Roman)
-    st.markdown(f"""
-        <p style="text-align: center; font-family: 'Times New Roman', Times, serif; font-size: 0.9rem; color: #555;"><em>Team ratings from Massey Ratings (masseyratings.com). PrestoSports team stats saved {SEASONS[season]['presto_date']}. SIDEARM team stats are refreshed every few hours.</em></p>
+    note_dates = ' and '.join(sorted({SEASONS[off_season]['presto_date'], SEASONS[def_season]['presto_date']}))
+    note_spot.markdown(f"""
+        <p style="text-align: center; font-family: 'Times New Roman', Times, serif; font-size: 0.9rem; color: #555;"><em>Team ratings from Massey Ratings (masseyratings.com). PrestoSports team stats saved {note_dates}. SIDEARM team stats are refreshed every few hours.</em></p>
     """, unsafe_allow_html=True)
-
-    #Pick the two teams (from the chosen season's lists)
-    presto_names, sidearm_names = get_team_names(season)
-    #Only teams that are in the season's Massey ratings can be picked
-    massey_names = get_massey_names(season)
-    all_team_names = sorted(team for team in set(presto_names + sidearm_names) if MASSEY_ALIASES.get(team, team).lower() in massey_names)
-    left, right = st.columns(2)
-    off_name = left.selectbox('Offense', all_team_names, index=None, placeholder='Choose a team', key='offense_' + season)
-    def_name = right.selectbox('Defense', all_team_names, index=None, placeholder='Choose a team', key='defense_' + season)
 
     if off_name is None or def_name is None:
         return
-    if off_name == def_name:
-        st.warning('Choose two different teams.')
+    if off_name == def_name and off_season == def_season:
+        st.warning('Choose two different teams (or the same team from different seasons).')
         return
 
     #Load the stats
     with st.spinner('Loading team stats...'):
-        hitting_table, off_pitching = load_team_stats(off_name, season)
-        def_hitting, pitching_table = load_team_stats(def_name, season)
+        hitting_table, off_pitching = load_team_stats(off_name, off_season)
+        def_hitting, pitching_table = load_team_stats(def_name, def_season)
 
     if hitting_table is None or off_pitching is None:
-        st.error(f'Could not load stats for {off_name}.')
+        st.error(f'Could not load stats for {off_name} ({off_season}).')
         return
     if def_hitting is None or pitching_table is None:
-        st.error(f'Could not load stats for {def_name}.')
+        st.error(f'Could not load stats for {def_name} ({def_season}).')
         return
 
     #Pick the pitcher (from the defense team)
     pitcher_options = [f"#{row['#']} {row['Player']}" for _, row in pitching_table.iterrows()]
-    pitcher_choice = st.selectbox(f'{def_name} pitcher', pitcher_options)
+    pitcher_choice = st.selectbox(f'{def_name} ({def_season}) pitcher', pitcher_options)
     pitcher_num = pitcher_choice.split(' ')[0][1:]
 
     #Pick the lineup (from the offense team), starting with the hitters who have the most at bats
-    st.subheader(f'{off_name} lineup')
+    st.subheader(f'{off_name} ({off_season}) lineup')
     hitter_options = [f"#{row['#']} {row['Player']}" for _, row in hitting_table.iterrows()]
     default_order = hitting_table.sort_values('AB', ascending=False).index.tolist()
 
@@ -891,7 +896,7 @@ def main():
     columns = st.columns(3)
     for spot in range(9):
         default_index = default_order[spot] if spot < len(default_order) else 0
-        choice = columns[spot % 3].selectbox(f'Batter {spot + 1}', hitter_options, index=int(default_index), key=f'{season}_{off_name}_batter_{spot}')
+        choice = columns[spot % 3].selectbox(f'Batter {spot + 1}', hitter_options, index=int(default_index), key=f'{off_season}_{off_name}_batter_{spot}')
         lineup_choices.append(choice)
 
     if len(set(lineup_choices)) < 9:
@@ -900,7 +905,7 @@ def main():
 
     #Run the sim
     if st.button('Run the sim', type='primary'):
-        massey_result = massey_weights(off_name, def_name, season)
+        massey_result = massey_weights(off_name, def_name, off_season, def_season)
         if massey_result is None:
             st.error('Could not find both teams in the saved Massey ratings.')
             return
@@ -912,7 +917,8 @@ def main():
         with st.spinner('Playing 40 games...'):
             results = simulate(hitter_lineup, pitcher_stats, massey_result[0], massey_result[1])
 
-        results['season'] = season
+        results['off_season'] = off_season
+        results['def_season'] = def_season
         results['off_name'] = off_name
         results['def_name'] = def_name
         results['off_logo'] = load_logo(off_name)
@@ -923,10 +929,10 @@ def main():
 
     #Show the results (they stay on the page when the replay slider moves)
     results = st.session_state.get('results')
-    if results is None or results.get('season') != season:
+    if results is None:
         return
 
-    st.header(f"{results['pitcher_name']} vs {results['off_name']}")
+    st.header(f"{results['pitcher_name']} ({results['def_season']}) vs {results['off_name']} ({results['off_season']})")
 
     #1. Watch the sim (Play game, then Stop game while it runs, then Replay game)
     st.subheader('Replay of game 1')
@@ -964,7 +970,7 @@ def main():
         st.subheader('Game Average Pitching Stats (w/ 95% confidence intervals)')
         st.dataframe(results['pitcher_table'], hide_index=True, width='stretch')
 
-        st.subheader(f"{results['off_name']} Game Average Hitting Stats")
+        st.subheader(f"{results['off_name']} ({results['off_season']}) Game Average Hitting Stats")
         st.dataframe(format_hitter_table(results['hitter_table']), hide_index=True, width='stretch')
 
         st.download_button(
