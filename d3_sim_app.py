@@ -55,7 +55,7 @@ MASSEY_ALIASES = {'Carroll': 'Carroll WI'}
 
 #The weakest teams in a season's Massey ratings count extra (the factor 1.5 means one and a half times the penalty)
 WEAK_TEAM_COUNT = 8
-WEAK_TEAM_FACTOR = 1.5
+WEAK_TEAM_FACTOR = 2.5
 
 #This function gives the names of the weakest teams in a season's Massey file (remembered so the file is only read once)
 @st.cache_data(show_spinner=False)
