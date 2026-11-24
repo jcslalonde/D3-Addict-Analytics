@@ -109,9 +109,9 @@ def get_sidearm_stats(url):
         hitting = hitting.dropna(subset=['#'])
         pitching = pitching.dropna(subset=['#'])
 
-        #Change jersey number to str
-        hitting['#'] = hitting['#'].astype(int).astype(str)
-        pitching['#'] = pitching['#'].astype(int).astype(str)
+        #Keep the jersey number as text (some players have two numbers like 27/7)
+        hitting['#'] = hitting['#'].astype(str).str.replace(r'\.0$', '', regex=True)
+        pitching['#'] = pitching['#'].astype(str).str.replace(r'\.0$', '', regex=True)
 
         #Put SB and ATT into their own columns and drop the current one for the hitting table
         hitting['SB'] = hitting['SB-ATT'].str.split('-').str[0]
