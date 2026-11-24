@@ -355,6 +355,10 @@ def simulate(hitting_table, pitcher_stats, off_weight, def_weight):
     #Keep only needed from the pitching table
     pitching_table = pitching_table[['#', 'Player', 'W_BAA', 'W_XBH/HA', '%XBH_AS_2BA', '%XBH_AS_3BA', '%XBH_AS_HRA', 'W_KA_RT', 'W_BB+A_RT']]
 
+    #Fill blanks (like a 0 shown as a dash) with 0 so they do not turn every probability into NaN
+    hitting_table = hitting_table.fillna(0)
+    pitching_table = pitching_table.fillna(0)
+    
     #Repeat the pitcher for each batter
     pitching_table = pd.concat([pitching_table] * len(hitting_table), ignore_index=True)
 
