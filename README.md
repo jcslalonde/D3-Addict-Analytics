@@ -17,7 +17,7 @@ The output is composed of 3 sections.
 ## Project Structure
 
 - `d3_sim_app.py` – Contains the website interface and connects the simulation to the interactive website (offense and defense can each be set to the 2025 or 2026 season)
-- `base_d3_simulation.py` – Contains the initial simulation code, including statistical calculations, player data collection, and game simulation functions, which was the first draft testing idea built.
+- `base_d3_simulation.py` – Contains the initial simulation code, including statistical calculations, player data collection, and game simulation functions, which was the first draft testing idea built
 - `requirements.txt` – Lists the Python libraries required to run the project
 - `.gitignore` – Lists files and folders that **aren't needed in the GitHub repository** and should therefore be excluded
 - `README.md` – Provides an overview of the project and explains its structure and features
