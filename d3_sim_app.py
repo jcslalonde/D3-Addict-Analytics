@@ -12,8 +12,8 @@ import requests
 import streamlit as st
 from bs4 import BeautifulSoup
 import base64
-import sys
 
+import sys
 #Find presto_text_fn.py wherever it is in the repo
 for folder, subfolders, files in os.walk(os.path.dirname(os.path.abspath(__file__))):
     if 'presto_text_fn.py' in files:
@@ -27,9 +27,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PRESTO_LOGO_FOLDER = os.path.join(BASE_DIR, 'presto_logos', 'presto_logos')
 SIDEARM_LOGO_FOLDER = os.path.join(BASE_DIR, 'sidearm_logos', 'sidearm_logos')
 BACKGROUND_FILE = os.path.join(BASE_DIR, 'background.jpg')
-
-#Edit this when a new version of the app is released
-APP_VERSION = '2026'
 
 #Each season has its own saved Presto text folder, team link files, and Massey ratings file
 SEASONS = {
@@ -793,6 +790,14 @@ def format_hitter_table(hitter_table):
             shown[col] = shown[col].map(lambda x: f'{x:.1f}')
     return shown
 
+#This function makes a team picker that keeps the chosen team when the season changes (as long as the team is in the new season's list)
+def team_picker(box, label, teams, season, name):
+    previous = st.session_state.get(name + '_pick')
+    index = teams.index(previous) if previous in teams else None
+    choice = box.selectbox(label, teams, index=index, placeholder='Choose a team', key=name + '_' + season)
+    st.session_state[name + '_pick'] = choice
+    return choice
+
 #This function reads the background photo from the repo (remembered so it is only read once)
 @st.cache_data(show_spinner=False)
 def load_background(path):
@@ -835,7 +840,6 @@ def main():
     
     #Title, subtitle, and data note (all centered, in Times New Roman)
     st.markdown(f"""
-        <div style="text-align: right; color: #000000; font-size: 0.85rem; font-family: 'Times New Roman', Times, serif;">* Version {APP_VERSION}</div>
         <h1 style="text-align: center; font-family: 'Times New Roman', Times, serif;">D3 Baseball Simulation</h1>
         <h4 style="text-align: center; font-family: 'Times New Roman', Times, serif; font-weight: normal;">Select a pitcher and opposing lineup for a 40 game season sim</h4>
     """, unsafe_allow_html=True)
@@ -855,8 +859,8 @@ def main():
     off_season = off_season_box.selectbox('Offense season', season_options, key='offense_season')
     def_season = def_season_box.selectbox('Defense season', season_options, key='defense_season')
 
-    off_name = off_team_box.selectbox('Offense', get_pickable_teams(off_season), index=None, placeholder='Choose a team', key='offense_' + off_season)
-    def_name = def_team_box.selectbox('Defense', get_pickable_teams(def_season), index=None, placeholder='Choose a team', key='defense_' + def_season)
+    off_name = team_picker(off_team_box, 'Offense', get_pickable_teams(off_season), off_season, 'offense')
+    def_name = team_picker(def_team_box, 'Defense', get_pickable_teams(def_season), def_season, 'defense')
 
     #Data note (centered, in Times New Roman)
     note_dates = ' and '.join(sorted({SEASONS[off_season]['presto_date'], SEASONS[def_season]['presto_date']}))
